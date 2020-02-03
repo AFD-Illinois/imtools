@@ -46,7 +46,7 @@ def write_git_revision(package_name):
         outf.write("GIT_REVISION = %s\n" % repr(git_rev))
 
 
-write_git_revision("pyHARM")
+write_git_revision("imtools")
 
 
 setup(name="imtools",
