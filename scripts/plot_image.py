@@ -8,8 +8,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 
-
-
 if __name__ == "__main__":
 
   for fname in sys.argv[1:]:
@@ -32,6 +30,7 @@ if __name__ == "__main__":
     # quiver on intensity
     plot_evpa_ticks(ax1, image)
 
+    # linear polarization fraction
     plot_lpfrac(ax2, image)
 
     # circular polarization fraction
@@ -40,23 +39,17 @@ if __name__ == "__main__":
     # evpa
     plot_evpa_rainbow(ax3, image)
 
-    # command line output
-    # print("Flux [Jy]:    {0:g} {1:g}".format(I.sum()*scale, unpol.sum()*scale))
-    # print("I,Q,U,V [Jy]: {0:g} {1:g} {2:g} {3:g}".format(I.sum()*scale,Q.sum()*scale,U.sum()*scale,V.sum()*scale))
-    # print("LP [%]:       {0:g}".format(100.*np.sqrt(Q.sum()**2+U.sum()**2)/I.sum()))
-    # print("CP [%]:       {0:g}".format(100.*V.sum()/I.sum()))
-    # evpatot = 180./3.14159*0.5*np.arctan2(U.sum(),Q.sum())
-    # if evpa_0 == "W":
-    #   evpatot += 90. 
-    #   if evpatot > 90.:
-    #     evpatot -= 180
-    # if EVPA_CONV == "NofW":
-    #   evpatot += 90.
-    #   if evpatot > 90.:
-    #     evpatot -= 180
-    # print("EVPA [deg]:   {0:g}".format(evpatot))
+    # print image-average quantities to command line
+    print("Flux [Jy]:    {0:g} ({1:g} unpol)".format(image.Itot*image.scale, np.sum(image.unpol)*image.scale))
+    print("I,Q,U,V [Jy]: {0:g} {1:g} {2:g} {3:g}".format(image.Itot*image.scale,
+                                                        image.Qtot*image.scale,
+                                                        image.Utot*image.scale,
+                                                        image.Vtot*image.scale))
+    print("LP [%]:       {0:g}".format(100.*image.lpfrac_int()))
+    print("CP [%]:       {0:g}".format(100.*image.cpfrac_int()))
+    print("EVPA [deg]:   {0:g}".format(image.evpa_int()))
 
     # saving
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig(fname.replace(".h5",".png"))
+    plt.savefig(fname.replace(".h5",".png")) #TODO current folder instead of original?
 
