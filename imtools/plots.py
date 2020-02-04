@@ -8,9 +8,16 @@ from imtools.image import Image
 def plot_var(ax, var, image, fov_units="muas", xlabel=True, ylabel=True, add_cbar=True, clabel=None, zoom=1, clean=False, **kwargs):
     """General function for plotting a set of pixels, given some options about how"""
     extent_og = image.extent(fov_units)
-    extent_show = [extent_og[0]/zoom, extent_og[1]/zoom, extent_og[2]/zoom, extent_og[3]/zoom]
-    im = ax.imshow(var, origin='lower', extent=extent_show, **kwargs)
 
+    X, Y = np.meshgrid(np.linspace(extent_og[0], extent_og[1], image.nx+1),
+                        np.linspace(extent_og[2], extent_og[3], image.ny+1))
+    im = ax.pcolormesh(X, Y, var, **kwargs)
+
+    # Window and aspect
+    ax.axis([extent_og[0]/zoom, extent_og[1]/zoom, extent_og[2]/zoom, extent_og[3]/zoom])
+    ax.set_aspect('equal')
+
+    # Colorbar
     if add_cbar and not clean:
         cbar = _colorbar(im)
         if clabel is not None:
@@ -21,27 +28,35 @@ def plot_var(ax, var, image, fov_units="muas", xlabel=True, ylabel=True, add_cba
 
         cbar.update_ticks()
 
-    ax.set_aspect('equal')
-    ax.grid(False)
-    if xlabel and not clean:
-        if fov_units == "muas":
-            ax.set_xlabel(r"x ($\mu as$)")
-        else:
-            ax.set_xlabel("x ({})".format(fov_units))
-    if ylabel and not clean:
-        if fov_units == "muas":
-            ax.set_xlabel(r"y ($\mu as$)")
-        else:
-            ax.set_ylabel("y ({})".format(fov_units))
-    
+    # Cosmetics
     if clean:
         ax.tick_params(axis='both', which='both', bottom=False, top=False, left=False, right=False,
                         labelbottom=False, labelleft=False)
+    else:
+        ax.grid(False)
+        ax.set_xticks(ax.get_yticks())
+
+        if xlabel:
+            if fov_units == "muas":
+                ax.set_xlabel(r"x ($\mu as$)")
+            else:
+                ax.set_xlabel("x ({})".format(fov_units))
+        else:
+            ax.set_xticklabels([])
+
+        if ylabel:
+            if fov_units == "muas":
+                ax.set_ylabel(r"y ($\mu as$)")
+            else:
+                ax.set_ylabel("y ({})".format(fov_units))
+        else:
+            ax.set_yticklabels([])
 
     return im
 
 def plot_I(ax, image, units="cgs", clean=False, **kwargs):
-    plot_var(ax, image.I * image.scale_flux(units), image, clean=clean, cmap='afmhot', vmin=0., vmax=1.e-4, **kwargs) #TODO sensible max
+    # TODO consistent scaling option for movies
+    plot_var(ax, image.I * image.scale_flux(units), image, clean=clean, cmap='afmhot', **kwargs) #TODO sensible max
     if not clean:
         ax.set_title("Stokes I [{}]".format(units))
 
@@ -66,14 +81,14 @@ def plot_evpa_rainbow(ax, image, evpa_conv="EofN", **kwargs):
     plot_var(ax, image.evpa(evpa_conv, mask_zero=True), image, cmap='hsv', vmin=-90., vmax=90., **kwargs)
     ax.set_title("EVPA [deg]")
 
-def plot_evpa_ticks(ax, image, n_evpa=32, scaled=False, only_ring=False, **kwargs):
+def plot_evpa_ticks(ax, image, n_evpa=20, scaled=False, only_ring=False, fov_units="muas", **kwargs):
     """Superimpose EVPA as a quiver plot, either scaled or (TODO) colored by polarization fraction.
     """
-    # TODO ticks are generally too long
-    evpa = image.evpa()
+    im_evpa = image.downsampled(image.nx // n_evpa)
+    evpa = np.pi*im_evpa.evpa(evpa_conv="NofW")/180.
     if scaled:
         # Scaled to polarization fraction
-        amp = np.sqrt(image.Q ** 2 + image.U ** 2)
+        amp = np.sqrt(im_evpa.Q ** 2 + im_evpa.U ** 2)
         scal = np.max(amp) # TODO consistent scaling option for animations
         vx = amp * np.cos(evpa) / scal
         vy = amp * np.sin(evpa) / scal
@@ -82,19 +97,33 @@ def plot_evpa_ticks(ax, image, n_evpa=32, scaled=False, only_ring=False, **kwarg
         vx = np.cos(evpa)
         vy = np.sin(evpa)
 
-    skipx = int(image.nx / n_evpa)
-    skipy = int(image.ny / (n_evpa * (image.ny / image.nx)))
-
     if only_ring:
-        slc = np.where(image.ring_mask(skipx, skipy))
+        slc = im_evpa.ring_mask()
     else:
         slc = (slice(None), slice(None))
 
-    i, j = np.meshgrid(np.linspace(ax.get_xlim()[0], ax.get_xlim()[1], image.nx), np.linspace(ax.get_ylim()[0], ax.get_ylim()[1], image.nx))
+    extent_og = im_evpa.extent(fov_units)
+    Xlocs, xstep = np.linspace(extent_og[0], extent_og[1], im_evpa.nx, endpoint=False, retstep=True)
+    Ylocs, ystep = np.linspace(extent_og[2], extent_og[3], im_evpa.ny, endpoint=False, retstep=True)
+    X, Y = np.meshgrid(Xlocs + 0.5*xstep, Ylocs + 0.5*ystep)
 
-    # TODO the plot_var niceties
-    ax.quiver(i[::skipx, ::skipy][slc], j[::skipx, ::skipy][slc], vx[::skipx, ::skipy][slc],
-               vy[::skipx, ::skipy][slc], headwidth=1, headlength=1, **kwargs)
+    # TODO set number of ticks to be constant with plot size?
+    # TODO make scaled look good too
+
+    xlim = ax.get_xlim()
+    xdim = xlim[1] - xlim[0]
+    if scaled:
+        ax.quiver(X[slc], Y[slc], vx[slc], vy[slc], headwidth=1, headlength=.01,
+                    width=.01*xdim, units='x', color='k', pivot='mid', scale=0.7*n_evpa/xdim, **kwargs)
+        ax.quiver(X[slc], Y[slc], vx[slc], vy[slc], headwidth=1, headlength=.01,
+                        width=.005*xdim, units='x', color='w', pivot='mid', scale=0.8*n_evpa/xdim, **kwargs)
+    else:
+        ax.quiver(X[slc], Y[slc], vx[slc], vy[slc],
+                    headwidth=1, headlength=0,
+                    width=.01*xdim, units='x', color='k', pivot='mid', scale=n_evpa/xdim, **kwargs)
+        ax.quiver(X[slc], Y[slc], vx[slc], vy[slc],
+                        headwidth=1, headlength=0,
+                        width=.005*xdim, units='x', color='w', pivot='mid', scale=1.2*n_evpa/xdim, **kwargs)
 
 # Local support functions
 def _colorbar(mappable):

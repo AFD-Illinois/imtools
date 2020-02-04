@@ -11,6 +11,8 @@ import glob
 
 from imtools.io import read_image
 
+MAX_N_IMAGES = 4000
+
 class ImageSet(object):
 
     def __init__(self, basedir):
@@ -52,7 +54,8 @@ class ImageSet(object):
                 # Insert a new 
                 key = flux + "/" + "{:.2}".format(a) + "/" + "{}".format(rhigh)
                 if not key in self.names:
-                    self.names[key] = np.zeros(4000, dtype="S1024")
+                    self.names[key] = np.zeros(MAX_N_IMAGES, dtype="S1024")
+                
                 self.names[key][nimg] = fname.replace(self.basedir, "").lstrip("/")
 
             with open(cachefile, "wb") as cf:
@@ -61,8 +64,26 @@ class ImageSet(object):
     def get_fname(self, flux, spin, rhigh, nimg):
         key = flux + "/" + spin + "/" + rhigh
         try:
-            path = os.path.join(self.basedir, self.names[key][nimg].decode('utf-8').lstrip("/"))
+            fpath = self.names[key][nimg].decode('utf-8').lstrip("/")
+            if fpath == '':
+                print("Image does not exist: model {} #{}".format(key, nimg))
+                path = None
+            else:
+                path = os.path.join(self.basedir, fpath)
         except KeyError:
-            print("File not found: {} #{}".format(key, nimg))
+            print("Model not found: {}".format(key, nimg))
             path = None
         return path
+
+    def get_all_fnames(self, flux, spin, rhigh):
+        key = flux + "/" + spin + "/" + rhigh
+        paths = []
+        try:
+            for nimg in range(MAX_N_IMAGES):
+                fpath = self.names[key][nimg].decode('utf-8').lstrip("/")
+                if fpath != '':
+                    paths.append(os.path.join(self.basedir, fpath))
+        except KeyError:
+            print("Model not found: {}".format(key, nimg))
+            paths = []
+        return paths
