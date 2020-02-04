@@ -221,7 +221,7 @@ class Image(object):
         else:
             print("! unrecognized units for FOV {}. quitting.".format(fov_units))
 
-    def scale(self, units):
+    def scale_flux(self, units):
         if units == "cgs":
             return 1
         elif units == "Jy/px":

@@ -15,8 +15,13 @@ def read_image(fname, parameters={}):
     """
     if isinstance(fname, str):
         manage_file = True
+        ftype = None
         if fname[-3:] == ".h5":
-            infile = h5py.File(fname, "r")
+            try:
+                infile = h5py.File(fname, "r")
+            except IOError:
+                print("Warning: cannot read ", fname)
+                return None
             ftype = "ipole_h5"
         elif fname[-4:] == ".dat":
             infile = np.loadtxt(fname).T
@@ -24,23 +29,27 @@ def read_image(fname, parameters={}):
                 ftype = "ipole_dat_7"
             elif infile.shape[0] == 6:
                 ftype = "ipole_dat_6"
-            else:
-                raise ValueError("File is of unknown type")
     elif isinstance(fname, h5py.File):
         # Please don't hand us files, but we will try to interpret if you do
         manage_file = False
         infile = fname
         fname = infile.filename
         ftype = "ipole_h5"
-    else:
-        raise ValueError("File is of unknown type")
+
+    if ftype is None:
+        print("Warning: unknown file {}".format(fname))
+        return None
 
     if ftype == "ipole_h5":
-        pol_data = infile['pol'][:,:,:4].transpose(1,0,2)
-        unpol_data = infile['unpol'][()].T
-        tauF = infile['pol'][:,:,4].T
-        tau = infile['tau'][()].T
-        header = hdf5_to_dict(infile['header'])
+        try:
+            pol_data = infile['pol'][:,:,:4].transpose(1,0,2)
+            unpol_data = infile['unpol'][()].T
+            tauF = infile['pol'][:,:,4].T
+            tau = infile['tau'][()].T
+            header = hdf5_to_dict(infile['header'])
+        except KeyError:
+            print("Warning: unable to open object in file ", fname)
+            return None
     elif ftype == "ipole_dat_7":
         imres = np.sqrt(infile.shape[1])
         pol_data = infile[3:7].reshape(4,imres,imres)
