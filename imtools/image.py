@@ -110,8 +110,30 @@ class Image(object):
             unpol = gaussian_filter(self.unpol, sigma=sigma)
         else:
             unpol = None
-
-        return Image(self.properties, I, Q, U, V, tau=tau, init_type="")
+        # TODO does this change any properties?
+        return Image(self.properties.copy(), I, Q, U, V, tau=tau, tauF=tauF, unpol=unpol, init_type="multi_arrays_stokes")
+    
+    def downsampled(self, skip=2):
+        I = self.I[::skip, ::skip]
+        Q = self.Q[::skip, ::skip]
+        U = self.U[::skip, ::skip]
+        V = self.V[::skip, ::skip]
+        if self.tau is not None:
+            tau = self.tau[::skip, ::skip]
+        else:
+            tau = None
+        if self.tauF is not None:
+            tauF = self.tauF[::skip, ::skip]
+        else:
+            tauF = None
+        if self.unpol is not None:
+            unpol = self.unpol[::skip, ::skip]
+        else:
+            unpol = None
+        props = self.properties.copy()
+        props['camera']['nx'] = I.shape[0]
+        props['camera']['ny'] = I.shape[1]
+        return Image(self.properties, I, Q, U, V, tau=tau, tauF=tauF, unpol=unpol, init_type="multi_arrays_stokes")
 
     # Per-pixel derived quanties: return a new array of size i,j
     def lpfrac(self, mask_zero=False):
@@ -123,6 +145,7 @@ class Image(object):
         if mask_zero: cpfrac[self.zero_mask()] = np.nan
         return cpfrac
     def evpa(self, evpa_conv="EofN", mask_zero=False):
+        """Return the per-pixel EVPA in degrees in *EAST OF NORTH* convention by default"""
         evpa = (180./np.pi)*0.5*np.arctan2(self.U, self.Q)
         if self.evpa_0 == "W":
             evpa += 90.
@@ -210,8 +233,8 @@ class Image(object):
         Imaskval = np.nanmax(self.I) / self.I.shape[0]**5
         return np.abs(self.I) < Imaskval
     
-    def ring_mask(self, skipx=1, skipy=1):
-        return self.I[::skipx, ::skipy] > np.mean(self.I) + np.std(self.I)
+    def ring_mask(self):
+        return self.I > np.mean(self.I) + np.std(self.I)
 
     def extent(self, fov_units):
         if fov_units == "muas":
