@@ -1,42 +1,49 @@
 # Different plots that can be made of images, or combinations of images
-# Functions with their own figures begin with generate_,
-# those that take an axis on which to plot begin plot_
+# These are the functions which use an existing axis, for functions that generate a figure see reports.py
 
 import numpy as np
 
 from imtools.image import Image
 
-def plot_var(ax, var, image, scale=1, fov_units="muas", xlabel=True, ylabel=True, clabel=None, **kwargs):
+def plot_var(ax, var, image, fov_units="muas", xlabel=True, ylabel=True, add_cbar=True, clabel=None, zoom=1, clean=False, **kwargs):
     """General function for plotting a set of pixels, given some options about how"""
-    im = ax.imshow(var*scale, origin='lower', extent=image.extent(fov_units), **kwargs)
+    extent_og = image.extent(fov_units)
+    extent_show = [extent_og[0]/zoom, extent_og[1]/zoom, extent_og[2]/zoom, extent_og[3]/zoom]
+    im = ax.imshow(var, origin='lower', extent=extent_show, **kwargs)
 
-    cbar = _colorbar(im)
-    if clabel is not None:
-        cbar.set_label(clabel)
+    if add_cbar and not clean:
+        cbar = _colorbar(im)
+        if clabel is not None:
+            cbar.set_label(clabel)
 
-    if 'vmax' not in kwargs or kwargs['vmax'] < 1:
-        cbar.formatter.set_powerlimits((0, 0))
+        if 'vmax' not in kwargs or kwargs['vmax'] < 1:
+            cbar.formatter.set_powerlimits((0, 0))
 
-    cbar.update_ticks()
+        cbar.update_ticks()
 
     ax.set_aspect('equal')
     ax.grid(False)
-    if xlabel:
+    if xlabel and not clean:
         if fov_units == "muas":
             ax.set_xlabel(r"x ($\mu as$)")
         else:
             ax.set_xlabel("x ({})".format(fov_units))
-    if ylabel:
+    if ylabel and not clean:
         if fov_units == "muas":
             ax.set_xlabel(r"y ($\mu as$)")
         else:
             ax.set_ylabel("y ({})".format(fov_units))
+    
+    if clean:
+        ax.tick_params(axis='both', which='both', bottom=False, top=False, left=False, right=False,
+                        labelbottom=False, labelleft=False)
 
     return im
 
-def plot_I(ax, image, units="cgs", fov_units="muas", **kwargs):
-    plot_var(ax, image.I, image, cmap='afmhot', vmin=0., vmax=1.e-4, **kwargs) #TODO sensible max
-    ax.set_title("Stokes I [{}]".format(units))
+def plot_I(ax, image, units="cgs", clean=False, **kwargs):
+    plot_var(ax, image.I * image.scale_flux(units), image, clean=clean, cmap='afmhot', vmin=0., vmax=1.e-4, **kwargs) #TODO sensible max
+    if not clean:
+        ax.set_title("Stokes I [{}]".format(units))
 
 def plot_lpfrac(ax, image, **kwargs):
     ax.set_facecolor('black')
@@ -88,7 +95,6 @@ def plot_evpa_ticks(ax, image, n_evpa=32, scaled=False, only_ring=False, **kwarg
     # TODO the plot_var niceties
     ax.quiver(i[::skipx, ::skipy][slc], j[::skipx, ::skipy][slc], vx[::skipx, ::skipy][slc],
                vy[::skipx, ::skipy][slc], headwidth=1, headlength=1, **kwargs)
-
 
 # Local support functions
 def _colorbar(mappable):
