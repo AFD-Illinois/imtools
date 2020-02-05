@@ -158,7 +158,7 @@ class Image(object):
             evpa[self.zero_mask()] = np.nan
         return evpa
     
-    # Average versions: zero-baseline quantities
+    # Integrated a.k.a zero-baseline quantities
     def lpfrac_int(self):
         return np.sqrt(self.Qtot**2 + self.Utot**2) / self.Itot
     def cpfrac_int(self):
@@ -170,6 +170,11 @@ class Image(object):
     def lpfrac_av(self, blur=20, mask_zero=False):
         # TODO Jason *must* massage this, right?
         return np.mean(self.blurred(blur).lpfrac(mask_zero))
+    
+    def tauF_av(self):
+        return np.mean(self.tauF)
+    def tau_av(self):
+        return np.mean(self.tau)
     
     # Comparison quantities
     def mse(self, var1, var2):
@@ -249,3 +254,27 @@ class Image(object):
             return 1
         elif units == "Jy/px":
             return self.scale
+    
+    # Operators
+    def __iadd__(self, other):
+        self.I += other.I
+        self.Q += other.Q
+        self.U += other.U
+        self.V += other.V
+        # TODO if not none
+        self.tau += other.tau
+        self.tauF += other.tauF
+        self.unpol += other.unpol
+        return self
+    
+    def __itruediv__(self, other):
+        """Divide image quantities. Only defined for scalars, only needed for averages"""
+        self.I /= other
+        self.Q /= other
+        self.U /= other
+        self.V /= other
+        # TODO if not none
+        self.tau /= other
+        self.tauF /= other
+        self.unpol /= other
+        return self

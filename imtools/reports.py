@@ -2,6 +2,7 @@
 
 import matplotlib.pyplot as plt
 
+from imtools.library import ImageSet
 from imtools.io import read_image
 from imtools.plots import *
 
@@ -67,30 +68,32 @@ def generate_plot_pol(image, outfname, figsize=(8,8), print_stats=True, scaled=T
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig(outfname)
 
-def generate_collage(library, outfname, nimg, ignore_time=True, mad_spins=('-0.94', '-0.5', '0.0', '0.5', '0.94'),
-                    sane_spins=('-0.94', '-0.5', '0.0', '0.5', '0.94'), figsize=(15.5,10), zoom=2, blur=0):
+def generate_collage(library, outfname, nimg, ignore_time=True, mad_spins=ImageSet.canon_spins,
+                    sane_spins=ImageSet.canon_spins, figsize=(15.7,10), zoom=2, blur=0, average=False):
+    """Generate a figure with a collage of all models at a particular snapshot, or averaged
+    """
     plt.figure(figsize=figsize)
     plt.suptitle("Polarization Snapshots")
-    fluxes = ['MAD', 'SANE']
-    rhighs = ['1', '10', '20', '40', '80', '160']
     width = len(mad_spins) + len(sane_spins)
     wid_mad = len(mad_spins)
-    height = len(rhighs)
+    height = len(library.canon_rhighs)
 
-    for nflux, flux in enumerate(fluxes):
+    for nflux, flux in enumerate(library.canon_fluxes):
         for nspin, spin in enumerate( (mad_spins, sane_spins)[nflux] ):
-            for nrhigh, rhigh in enumerate(rhighs):
+            for nrhigh, rhigh in enumerate(library.canon_rhighs):
 
-                if ignore_time:
-                    imgname= library.get_all_fnames(flux,spin,rhigh)[nimg]
+                # Get the image. Note averaging is only to demo how silly it is
+                if average:
+                    image = library.average_image(flux,spin,rhigh)
                 else:
-                    imgname = library.get_fname(flux, spin, rhigh, nimg)
+                    if ignore_time:
+                        imgname = library.get_all_fnames(flux,spin,rhigh)[nimg]
+                        image = read_image(imgname)
+                    else:
+                        image = library.get_image(flux, spin, rhigh, nimg)
 
-                if imgname is None:
-                    continue
-                image = read_image(imgname)
-                if image is None:
-                    continue
+                    if image is None:
+                        continue
 
                 # Blur
                 if blur > 0:
@@ -108,5 +111,8 @@ def generate_collage(library, outfname, nimg, ignore_time=True, mad_spins=('-0.9
                 if nflux == 0 and nspin == 0:
                     ax.set_ylabel("Rhigh = " + rhigh)
 
-    plt.subplots_adjust(top=0.90, left=0.05, right=0.95, bottom=0.05, hspace=0, wspace=0)
+    plt.subplots_adjust(hspace=0, wspace=0)
     plt.savefig(outfname, dpi=200)
+
+def generate_lcs(library, outfname, figsize=(15.5,10)):
+    pass

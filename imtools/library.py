@@ -14,6 +14,9 @@ from imtools.io import read_image
 MAX_N_IMAGES = 4000
 
 class ImageSet(object):
+    canon_fluxes = ("MAD", "SANE")
+    canon_spins = ("-0.94", "-0.5", "0.0", "0.5", "0.94")
+    canon_rhighs = ("1", "10", "20", "40", "80", "160")
 
     def __init__(self, basedir):
         self.basedir = basedir.rstrip("/")
@@ -87,3 +90,25 @@ class ImageSet(object):
             print("Model not found: {}".format(key, nimg))
             paths = []
         return paths
+    
+    # These should all be backend-independent as they manipulate images or collections
+    # TODO time-based gets: get image closest to physical time, etc
+    def get_image(self, flux, spin, rhigh, nimg):
+        imgname = self.get_fname(flux, spin, rhigh, nimg)
+        if imgname is None:
+            return None
+        return read_image(imgname)
+
+    def average_image(self, flux, spin, rhigh):
+        imgnames = self.get_all_fnames(flux, spin, rhigh)
+        image = read_image(imgnames[0])
+        for i in range(1,len(imgnames)):
+            image += read_image(imgnames[i])
+        image /= len(imgnames)
+        return image
+    
+    def run_on(self, flux, spin, rhigh, fn):
+        results = []
+        for imname in self.get_all_fnames(flux, spin, rhigh):
+            results.append(fn(read_image(imname)))
+        return results
