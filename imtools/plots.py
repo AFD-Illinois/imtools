@@ -54,11 +54,35 @@ def plot_var(ax, var, image, fov_units="muas", xlabel=True, ylabel=True, add_cba
 
     return im
 
-def plot_I(ax, image, units="cgs", clean=False, **kwargs):
+def plot_I(ax, image, units="cgs", cmap='afmhot', clean=False, tag="", **kwargs):
     # TODO consistent scaling option for movies
-    plot_var(ax, image.I * image.scale_flux(units), image, clean=clean, cmap='afmhot', **kwargs) #TODO sensible max
+    plot_var(ax, image.I * image.scale_flux(units), image, clean=clean, cmap=cmap, **kwargs) #TODO sensible max
     if not clean:
         ax.set_title("Stokes I [{}]".format(units))
+
+def plot_one_stokes(ax, image, num, units="cgs", cmap='RdBu_r', clean=False, tag="", **kwargs):
+    var = image.stokes(num)
+    max_abs = min(max(np.abs(np.max(var)), np.abs(np.min(var))),1e3)
+    plot_var(ax, image.stokes(num) * image.scale_flux(units), image, clean=clean, cmap=cmap,
+                vmin=-max_abs, vmax=max_abs, **kwargs)
+    if not clean:
+        ax[i].set_title("{} Stokes {} [{}]".format(tag, ["I", "Q", "U", "V"][i], units))
+
+def plot_all_stokes(axes, image, relative=False, units="cgs", tag="", **kwargs):
+    """Plot the raw Stokes parameters on a set of 4 axes"""
+    ax = axes.flatten()
+
+    for i in range(4):
+        if i == 3 and units == "cgs":
+            clabel = "cgs" # TODO
+        elif i == 3 and units == "Jy":
+            clabel = "Jy/px"
+        else:
+            clabel = None
+        if i == 0 and not relative:
+            plot_I(ax[i], image, clabel=clabel, tag=tag, **kwargs)
+        else:
+            plot_one_stokes(ax[i], image, num, clabel=clabel, tag=tag, **kwargs)
 
 def plot_lpfrac(ax, image, **kwargs):
     ax.set_facecolor('black')
@@ -74,7 +98,6 @@ def plot_cpfrac(ax, image, **kwargs):
     ax.set_facecolor('black')
     plot_var(ax, 100*image.cpfrac(mask_zero=True), image, cmap='jet', vmin=0., vmax=100., **kwargs)
     ax.set_title("CP [%]")
-
 
 def plot_evpa_rainbow(ax, image, evpa_conv="EofN", **kwargs):
     ax.set_facecolor('black')

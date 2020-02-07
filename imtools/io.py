@@ -5,8 +5,15 @@ import h5py
 
 from imtools.image import Image
 
+
+def read_image_array(fname):
+    """Sometimes you just need some numbers"""
+    infile = h5py.File(fname)
+    pol = infile['pol'][:4]
+    return pol
+
 # TODO mutable default arg is probably v bad
-def read_image(fname, parameters={}):
+def read_image(fname, parameters={}, load_fluid_header=False):
     """Read image from the given path or file object.
     @param fname: name (preferably) of file.  Can be hdf5 file object
     @param parameters: Anything that should be added to the Image parameters
@@ -47,6 +54,11 @@ def read_image(fname, parameters={}):
             tauF = infile['pol'][:,:,4].T
             tau = infile['tau'][()].T
             header = hdf5_to_dict(infile['header'])
+            if load_fluid_header:
+                header.update(hdf5_to_dict(infile['fluid_header']))
+            for key in infile.keys():
+                if key not in ['header', 'fluid_header', 'pol', 'unpol', 'tau']:
+                    header[key] = infile[key][()]
         except KeyError:
             print("Warning: unable to open object in file ", fname)
             return None
