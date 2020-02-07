@@ -80,12 +80,15 @@ class Image(object):
             # Before this was
             print("Warning: guessing EVPA 0 point, EVPA may be off by 90deg")
             self.evpa_0 = "W"
-        
+        # Overall properties we can scoop
+        self.t = properties['t']
         # Pre-calculate some sums
         self.Itot = np.sum(self.I)
         self.Qtot = np.sum(self.Q)
         self.Utot = np.sum(self.U)
         self.Vtot = np.sum(self.V)
+        # And avoid a common mistake by good naming
+        self.flux = self.Itot * self.scale
     
     # Per-pixel transformations: return new image
     def blurred(self, fwhm=20):
@@ -175,6 +178,20 @@ class Image(object):
         return np.mean(self.tauF)
     def tau_av(self):
         return np.mean(self.tau)
+
+    # Return some things usually accessed as members, for library functions
+    def get_t(self):
+        return self.t
+    def get_flux(self):
+        return self.flux
+    def get_Itot(self):
+        return self.Itot
+    def get_Qtot(self):
+        return self.Qtot
+    def get_Utot(self):
+        return self.Utot
+    def get_Vtot(self):
+        return self.Vtot
     
     # Comparison quantities
     def mse(self, var1, var2):
