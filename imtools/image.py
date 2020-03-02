@@ -88,6 +88,7 @@ class Image(object):
         self.Utot = np.sum(self.U)
         self.Vtot = np.sum(self.V)
         # And avoid a common mistake by good naming
+        # This is in the header, but that may not reflect I anymore
         self.flux = self.Itot * self.scale
     
     # Per-pixel transformations: return new image
@@ -255,8 +256,11 @@ class Image(object):
         Imaskval = np.nanmax(self.I) / self.I.shape[0]**5
         return np.abs(self.I) < Imaskval
     
-    def ring_mask(self):
-        return self.I > np.mean(self.I) + np.std(self.I)
+    def ring_mask(self, high=False):
+        if high:
+            return self.I > np.mean(self.I) + np.std(self.I)
+        else:
+            return self.I > np.mean(self.I)
 
     def extent(self, fov_units):
         if fov_units == "muas":

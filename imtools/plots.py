@@ -104,7 +104,8 @@ def plot_evpa_rainbow(ax, image, evpa_conv="EofN", **kwargs):
     plot_var(ax, image.evpa(evpa_conv, mask_zero=True), image, cmap='hsv', vmin=-90., vmax=90., **kwargs)
     ax.set_title("EVPA [deg]")
 
-def plot_evpa_ticks(ax, image, n_evpa=20, scaled=False, only_ring=False, fov_units="muas", **kwargs):
+def plot_evpa_ticks(ax, image, n_evpa=20, scaled=False, only_ring=False, fov_units="muas", 
+                    custom=False, prominent=False, **kwargs):
     """Superimpose EVPA as a quiver plot, either scaled or (TODO) colored by polarization fraction.
     """
     im_evpa = image.downsampled(image.nx // n_evpa)
@@ -140,13 +141,23 @@ def plot_evpa_ticks(ax, image, n_evpa=20, scaled=False, only_ring=False, fov_uni
                     width=.01*xdim, units='x', color='k', pivot='mid', scale=0.7*n_evpa/xdim, **kwargs)
         ax.quiver(X[slc], Y[slc], vx[slc], vy[slc], headwidth=1, headlength=.01,
                         width=.005*xdim, units='x', color='w', pivot='mid', scale=0.8*n_evpa/xdim, **kwargs)
-    else:
-        ax.quiver(X[slc], Y[slc], vx[slc], vy[slc],
-                    headwidth=1, headlength=0,
-                    width=.01*xdim, units='x', color='k', pivot='mid', scale=n_evpa/xdim, **kwargs)
+    elif custom:
+        # Let the user decide
+        ax.quiver(X[slc], Y[slc], vx[slc], vy[slc], **kwargs)
+        ax.quiver(X[slc], Y[slc], vx[slc], vy[slc], **kwargs)
+    elif prominent:
+        # Big white ticks
         ax.quiver(X[slc], Y[slc], vx[slc], vy[slc],
                         headwidth=1, headlength=0,
-                        width=.005*xdim, units='x', color='w', pivot='mid', scale=1.2*n_evpa/xdim, **kwargs)
+                        width=.01*xdim, units='x', color='w', pivot='mid', scale=0.8*n_evpa/xdim, **kwargs)
+    else:
+        # Black ticks surrounding white
+        ax.quiver(X[slc], Y[slc], vx[slc], vy[slc],
+                    headwidth=1, headlength=0,
+                    width=.022*xdim, units='x', color='k', pivot='mid', scale=0.7*n_evpa/xdim, **kwargs)
+        ax.quiver(X[slc], Y[slc], vx[slc], vy[slc],
+                        headwidth=1, headlength=0,
+                        width=.01*xdim, units='x', color='w', pivot='mid', scale=0.8*n_evpa/xdim, **kwargs)
 
 # Local support functions
 def _colorbar(mappable):

@@ -68,18 +68,22 @@ def generate_plot_pol(image, outfname, figsize=(8,8), print_stats=True, scaled=T
     plt.savefig(outfname)
 
 def generate_collage(library, outfname, nimg, ignore_time=True, mad_spins=ImageSet.canon_spins,
-                    sane_spins=ImageSet.canon_spins, figsize=(16,9), zoom=2, blur=0, average=False):
+                    sane_spins=ImageSet.canon_spins, rhighs=ImageSet.canon_rhighs, figsize=(16,9), zoom=2, blur=0, average=False,
+                    title="Polarization Snapshots", evpa=True, n_evpa=20, duplicate=False):
     """Generate a figure with a collage of all models at a particular snapshot, or averaged
     """
     plt.figure(figsize=figsize)
-    plt.suptitle("Polarization Snapshots")
+    plt.suptitle(title)
     width = len(mad_spins) + len(sane_spins)
     wid_mad = len(mad_spins)
-    height = len(library.canon_rhighs)
+
+    if duplicate:
+        rhighs = rhighs + rhighs
+    height = len(rhighs)
 
     for nflux, flux in enumerate(library.canon_fluxes):
         for nspin, spin in enumerate( (mad_spins, sane_spins)[nflux] ):
-            for nrhigh, rhigh in enumerate(library.canon_rhighs):
+            for nrhigh, rhigh in enumerate(rhighs):
 
                 # Get the image. Note averaging is only to demo how silly it is
                 if average:
@@ -94,15 +98,16 @@ def generate_collage(library, outfname, nimg, ignore_time=True, mad_spins=ImageS
                     if image is None:
                         continue
 
-                # Blur
-                if blur > 0:
+                # Blur, unless we're building the top half of a contrast "duplicate" figure
+                if blur > 0 and not (duplicate and nrhigh < len(rhighs)/2):
                     image = image.blurred(blur)
 
                 # total intensity
                 ax = plt.subplot(height, width, width * nrhigh + wid_mad * nflux + nspin + 1)
 
                 plot_I(ax, image, zoom=zoom, clean=True)
-                plot_evpa_ticks(ax, image, only_ring=True)
+                if evpa:
+                    plot_evpa_ticks(ax, image, only_ring=True, n_evpa=n_evpa)
 
                 # Label the border plots
                 if nrhigh == 0:
