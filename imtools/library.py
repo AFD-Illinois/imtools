@@ -11,11 +11,22 @@ import glob
 
 from imtools.image import Image
 from imtools.io import read_image
-from imtools.parallel import *
+from imtools.parallel import map_parallel, iter_parallel
 
 MAX_N_IMAGES = 4000
-N_PROCS = 20
+N_PROCS = 15
+
+
 class ImageSet(object):
+    """An ImageSet represents a folder containing images from a set of 60 models, sharing
+    all of the same imaging choices and differing only in underlying physics.
+    Thus the only parameters it needs to distinguish models are:
+    BH flux level MAD/SANE
+    BH spin
+    Electron model, usually parameterized solely by Rhigh
+
+    If you have more images, see Library
+    """
     canon_fluxes = ("MAD", "SANE")
     canon_spins = ("-0.94", "-0.5", "0.0", "0.5", "0.94")
     canon_rhighs = ("1", "10", "20", "40", "80", "160")
@@ -146,7 +157,7 @@ class ImageSet(object):
         # return lists of t and fn(images) as the 2 elements of a list, rather than a single list of tuples
         return list(zip(*zipped))
 
-    # Use the serial versions
+    # Option to use only the serial versions
     # def average_image(self, flux, spin, rhigh):
     #     return self.average_image_serial(flux, spin, rhigh)
 
@@ -180,3 +191,9 @@ class ImageSet(object):
             ts.append(image.t)
             del image
         return (ts, results)
+
+
+class Library(object):
+    """A Library is any collection of images.  It keeps track of all parameters with a Model object.
+    Images are stored in a database indexed by Model and dump number
+    """
