@@ -33,21 +33,29 @@ class ImageSet(object):
 
     def __init__(self, basedir):
         self.basedir = basedir.rstrip("/")
-        cachefile = "names"+self.basedir.replace("/","_")+".p"
+        cachefile = "names" + self.basedir.replace("/","_") + ".p"
         if os.path.exists(cachefile):
             with open(cachefile, "rb") as cf:
                 self.names = pickle.load(cf)
         else:
             self.names = {}
-            reg_4dnum = re.compile(r"_\d\d\d\d_")
             for fname in glob.iglob(os.path.join(basedir, "**", "image_*.h5"), recursive=True):
                 # Skip even building the expensive Image object.  Just HDF5
+                # TODO we can multithread this. we have the technology -- just need a span of properties beforehand...
                 try:
                     im_h5 = h5py.File(fname, "r")
                     if '/fluid_header/geom/mks/a' in im_h5:
                         a = im_h5['/fluid_header/geom/mks/a'][()]
                     elif '/fluid_header/geom/mmks/a' in im_h5:
                         a = im_h5['/fluid_header/geom/mmks/a'][()]
+
+                    if '/header/electrons/type' in im_h5:
+                        etype = int(im_h5['/header/electrons/type'][()])
+
+                    if '/header/electrons/trat_small' in im_h5:
+                        rlow = int(im_h5['/header/electrons/trat_small'][()])
+                    elif '/header/electrons/rlow' in im_h5:
+                        rlow = int(im_h5['/header/electrons/rlow'][()])
 
                     if '/header/electrons/trat_large' in im_h5:
                         rhigh = int(im_h5['/header/electrons/trat_large'][()])
@@ -58,7 +66,7 @@ class ImageSet(object):
                     nimg = int(np.floor(im_h5['/header/t'][()] / 5.0))
 
                     im_h5.close()
-                except RuntimeError as e:
+                except RuntimeError:
                     print("Failed to read ", fname.replace(self.basedir,"").lstrip("/"))
 
                 # This only uses filename, not included in images
@@ -77,53 +85,51 @@ class ImageSet(object):
             with open(cachefile, "wb") as cf:
                 pickle.dump(self.names, cf)
 
-    def get_fname(self, flux, spin, rhigh, nimg):
+        # Keep a copy with only index information, not time
+        # Useful as a cache for some contexts
+        self.name_lists = {}
+        for key in self.names.keys():
+            self.name_lists[key] = [path.decode('utf-8').lstrip("/") for path in self.names[key] if path.decode('utf-8').lstrip("/") != '']
+
+    def get_fname(self, flux, spin, rhigh, nimg, qui=True, verbose=True):
         key = flux + "/" + spin + "/" + rhigh
         try:
-            fpath = self.names[key][nimg].decode('utf-8').lstrip("/")
+            if qui:
+                fpath = self.name_lists[key][nimg]
+            else:
+                fpath = self.names[key][nimg].decode('utf-8').lstrip("/")
+
             if fpath == '':
                 print("Image does not exist: model {} #{}".format(key, nimg))
                 path = None
             else:
                 path = os.path.join(self.basedir, fpath)
+                if verbose:
+                    print("Loading image ", path)
+
         except KeyError:
             print("Model not found: {}".format(key, nimg))
             path = None
+
         return path
 
     def get_all_fnames(self, flux, spin, rhigh):
         key = flux + "/" + spin + "/" + rhigh
         paths = []
         try:
-            for nimg in range(MAX_N_IMAGES):
-                fpath = self.names[key][nimg].decode('utf-8').lstrip("/")
-                if fpath != '':
-                    paths.append(os.path.join(self.basedir, fpath))
+            paths = [os.path.join(self.basedir, fpath) for fpath in self.name_lists[key] if fpath != '']
         except KeyError:
             print("Model not found: {}".format(key, nimg))
-            paths = []
-        return paths
-    
-    def get_fnames_structured(self, flux, spin, rhigh):
-        key = flux + "/" + spin + "/" + rhigh
-        paths = []
-        try:
-            for nimg in range(MAX_N_IMAGES):
-                fpath = self.names[key][nimg].decode('utf-8').lstrip("/")
-                if fpath != '':
-                    paths.append(os.path.join(self.basedir, fpath))
-        except KeyError:
-            print("Model not found: {}".format(key, nimg))
-            paths = []
         return paths
     
     # These should all be backend-independent as they manipulate images or collections
     # TODO time-based gets: get image closest to physical time, etc
-    def get_image(self, flux, spin, rhigh, nimg):
-        imgname = self.get_fname(flux, spin, rhigh, nimg)
+    def get_image(self, flux, spin, rhigh, nimg, **kwargs):
+        imgname = self.get_fname(flux, spin, rhigh, nimg, **kwargs)
         if imgname is None:
             return None
-        return read_image(imgname)
+        else:
+            return read_image(imgname)
 
     # Parallel operations
     def average_image(self, flux, spin, rhigh, nprocs=N_PROCS):

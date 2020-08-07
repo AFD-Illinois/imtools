@@ -2,13 +2,22 @@
 import numpy as np
 import h5py
 import matplotlib.pyplot as plt
+import copy
 
 from scipy.ndimage import gaussian_filter
+
+import imtools.stats as stats
+
+# TODO list:
+# Standard way of representing a GRMHD model, camera, and e- parameters, instead of a dict
+# All as one "model" or separate?
 
 # General container for polarized (Stokes I,Q,U,V) theory (truth) images
 # Not big or fancy like ehtim :)
 # This also includes lots of derived quantities
 class Image(object):
+    data_members = ["I", "Q", "U", "V", "tau", "tauF", "unpol"]
+
     def __init__(self, properties, array1, array2=None, array3=None, array4=None, tau=None, tauF=None, unpol=None,
                     init_type="one_array_forward"):
         """Initialize an Image object from data.  Resulting "object" doesn't really have member functions, more like a C struct
@@ -49,47 +58,46 @@ class Image(object):
             self.Q = array2[:,:]
             self.U = array3[:,:]
             self.V = array4[:,:]
-        if tau is not None:
-            self.tau = tau
-        if tauF is not None:
-            self.tauF = tauF
-        if unpol is not None:
-            self.unpol = unpol
+        # This makes sure the members exist
+        # We check if they are None before using
+        self.tau = tau
+        self.tauF = tauF
+        self.unpol = unpol
         
-        self.properties = properties
+        self.properties = copy.deepcopy(properties)
 
-        # Size.  Could be obtained from np arrays but good to check header
-        self.nx = properties['camera']['nx']
-        self.ny = properties['camera']['ny']
+        # Load camera parameters if we can
+        if 'camera' in properties:
+            # Size.  Could be obtained from np arrays but good to check header
+            self.nx = properties['camera']['nx']
+            self.ny = properties['camera']['ny']
 
-        # FOV in M. Named historically...
-        self.Dx = properties['camera']['dx']
-        self.Dy = properties['camera']['dy']
+            # FOV in M. Named historically...
+            self.Dx = properties['camera']['dx']
+            self.Dy = properties['camera']['dy']
 
-        self.dsource = properties['dsource']
-        self.lunit = properties['units']['L_unit']
-        # Magic number is for 
-        self.fov_muas_x = self.Dx / self.dsource * self.lunit * 2.06265e11
-        self.fov_muas_y = self.Dy / self.dsource * self.lunit * 2.06265e11
+            self.dsource = properties['dsource']
+            self.lunit = properties['units']['L_unit']
 
-        self.scale = properties['scale']
+            # Magic number is muas per radian
+            # TODO multiplication order?
+            self.fov_muas_x = self.Dx / self.dsource * self.lunit * 2.06265e11
+            self.fov_muas_y = self.Dy / self.dsource * self.lunit * 2.06265e11
+
+            self.scale = properties['scale']
+            self.t = properties['t']
+        else:
+            # Just guess size and have done
+            self.nx = self.I.shape[0]
+            self.ny = self.I.shape[1]
+            self.scale = 1
 
         if 'evpa_0' in properties:
             self.evpa_0 = properties['evpa_0']
         else:
-            # Before this was
+            # Guess that people probably follow theory convention
             print("Warning: guessing EVPA 0 point, EVPA may be off by 90deg")
             self.evpa_0 = "W"
-        # Overall properties we can scoop
-        self.t = properties['t']
-        # Pre-calculate some sums
-        self.Itot = np.sum(self.I)
-        self.Qtot = np.sum(self.Q)
-        self.Utot = np.sum(self.U)
-        self.Vtot = np.sum(self.V)
-        # And avoid a common mistake by good naming
-        # This is in the header, but that may not reflect I anymore
-        self.flux = self.Itot * self.scale
     
     # Per-pixel transformations: return new image
     def blurred(self, fwhm=20):
@@ -134,10 +142,10 @@ class Image(object):
             unpol = self.unpol[::skip, ::skip]
         else:
             unpol = None
-        props = self.properties.copy()
+        props = copy.deepcopy(self.properties)
         props['camera']['nx'] = I.shape[0]
         props['camera']['ny'] = I.shape[1]
-        return Image(self.properties, I, Q, U, V, tau=tau, tauF=tauF, unpol=unpol, init_type="multi_arrays_stokes")
+        return Image(props, I, Q, U, V, tau=tau, tauF=tauF, unpol=unpol, init_type="multi_arrays_stokes")
 
     # Per-pixel derived quanties: return a new array of size i,j
     def lpfrac(self, mask_zero=False):
@@ -155,7 +163,6 @@ class Image(object):
             evpa += 90.
             evpa[evpa > 90.] -= 180.
         if evpa_conv == "NofW":
-            # TODO check this...
             evpa -= 90.
             evpa[evpa < -90.] += 180.
         if mask_zero:
@@ -164,11 +171,11 @@ class Image(object):
     
     # Integrated a.k.a zero-baseline quantities
     def lpfrac_int(self):
-        return np.sqrt(self.Qtot**2 + self.Utot**2) / self.Itot
+        return np.sqrt(self.Qtot()**2 + self.Utot()**2) / self.Itot()
     def cpfrac_int(self):
-        return self.Vtot / self.Itot
+        return self.Vtot() / self.Itot()
     def evpa_int(self):
-        return (180./np.pi)*0.5*np.arctan2(self.Utot, self.Qtot)
+        return (180./np.pi)*0.5*np.arctan2(self.Utot(), self.Qtot())
 
     # Average lpfrac with given blur (NOT zero-baseline, taken per-px and averaged)
     def lpfrac_av(self, blur=20, mask_zero=False):
@@ -180,72 +187,81 @@ class Image(object):
     def tau_av(self):
         return np.mean(self.tau)
 
-    # Return some things usually accessed as members, for library functions
+    # Basic quantities.  Note for multithreading we use e.g.
+    # Image.get_t(particular_image)
+    # So we can't always use members
     def get_t(self):
         return self.t
-    def get_flux(self):
-        return self.flux
-    def get_Itot(self):
-        return self.Itot
-    def get_Qtot(self):
-        return self.Qtot
-    def get_Utot(self):
-        return self.Utot
-    def get_Vtot(self):
-        return self.Vtot
+    def fluxtot(self):
+        return np.sum(self.I) * self.scale
+    def Itot(self):
+        return np.sum(self.I)
+    def Qtot(self):
+        return np.sum(self.Q)
+    def Utot(self):
+        return np.sum(self.U)
+    def Vtot(self):
+        return np.sum(self.V)
+    def N(self):
+        return self.I.shape[0]*self.I.shape[1]
     
+    # Return raw array, for stuff that expects just an ndarray
+    def get_raw(self):
+        return np.array([self.I, self.Q, self.U, self.V])
+
+    # Programmatic Stokes access 0,1,2,3
+    # Returns None on invalid input
+    def get_stokes(self, n):
+        if n == 0: return self.I
+        if n == 1: return self.Q
+        if n == 2: return self.U
+        if n == 3: return self.V
+
     # Comparison quantities
     def mse(self, var1, var2):
-        """MSE of one var vs another.
+        """MSE of one var vs animage2.
         Follows GRRT paper definition in dividing by the sum(var) of *this* image
         """
-        # Avoid dividing by 0
-        norm = np.sum(np.abs(var1)**2)
-        if norm == 0: norm = 1
-        return np.sum(np.abs(var1 - var2)**2) / norm
+        return stats.mse(var1, var2)
+
     def mses(self, other):
         """MSE of this image vs another.
         Follows GRRT paper definition in dividing by the sum(var) of *this* image
         """
-        mses = []
-        mses.append(self.mse(self.I, other.I))
-        mses.append(self.mse(self.Q, other.Q))
-        mses.append(self.mse(self.U, other.U))
-        mses.append(self.mse(self.V, other.V))
-        return mses
+        return stats.mses(self, other)
 
-    def ssim(self, imageI, imageK):
+    def ssim(self, var1, var2):
         """SSIM as defined in Gold et al eq 10-ish"""
-        N = imageI.shape[0] * imageI.shape[1]
-        mu_I = np.sum(imageI) / N
-        mu_K = np.sum(imageK) / N
-        sig2_I = np.sum((imageI - mu_I)**2) / (N-1)
-        sig2_K = np.sum((imageK - mu_K)**2) / (N-1)
-        sig_IK = np.sum((imageI - mu_I)*(imageK - mu_K)) / (N-1)
-        return (2*mu_I*mu_K) / (mu_I**2 + mu_K**2) * (2*sig_IK) / (sig2_I + sig2_K)
+        return stats.ssim(var1, var2)
+
     def ssims(self, other):
         """SSIM for each variable with another image"""
-        ssims = []
-        ssims.append(self.ssim(self.I, other.I))
-        ssims.append(self.ssim(self.Q, other.Q))
-        ssims.append(self.ssim(self.U, other.U))
-        ssims.append(self.ssim(self.V, other.V))
-        return ssims
+        return stats.ssims(self, other)
 
-    def dssim(self, imageI, imageK):
-        tssim = self.ssim(imageI, imageK)
-        if np.isnan(tssim):
-            return 0.0
-        else:
-            return 1/np.abs(tssim) - 1
+    def dssim(self, var1, var2):
+        """Image dissimilarity DSSIM is 1/SSIM - 1"""
+        return stats.dssim(var1, var2)
+
     def dssims(self, other):
         """DSSIM for each variable with another image"""
-        dssims = []
-        dssims.append(self.dssim(self.I, other.I))
-        dssims.append(self.dssim(self.Q, other.Q))
-        dssims.append(self.dssim(self.U, other.U))
-        dssims.append(self.dssim(self.V, other.V))
-        return dssims
+        return stats.dssims(self, other)
+
+    def zncc(self, var1, var2):
+        """Image Zero-Normalized Cross-Correlation"""
+        return stats.zncc(var1, var2)
+
+    def znccs(self, other):
+        """ZNCC for each variable with another image"""
+        return stats.znccs(self, other)
+
+    def ncc(self, var1, var2):
+        """Image Normalized Cross-Correlation: no subtracted mean"""
+        return stats.ncc(var1, var2)
+
+    def nccs(self, other):
+        """NCC for each variable with another image"""
+        return stats.nccs(self, other)
+    # TODO ad rels
 
     # Plotting convenience quantities
     def zero_mask(self):
@@ -275,27 +291,105 @@ class Image(object):
             return 1
         elif units == "Jy/px":
             return self.scale
-    
+
+    # Nonvolatile Operations
+    def rel_diff(self, other, clip=None):
+        new_vars = {}
+        for m in Image.data_members:
+            if self.__dict__[m] is not None and other.__dict__[m] is not None:
+                if clip is not None:
+                    new_vars[m] = np.clip((other.__dict__[m] - self.__dict__[m]) / self.__dict__[m], clip[0], clip[1])
+                else:
+                    new_vars[m] = (other.__dict__[m] - self.__dict__[m]) / self.__dict__[m]
+            else:
+                new_vars[m] = None
+
+        return Image(self.properties, new_vars['I'], new_vars['Q'], new_vars['U'], new_vars['V'],
+                    tau=new_vars['tau'], tauF=new_vars['tauF'], unpol=new_vars['unpol'],
+                    init_type="multi_arrays_stokes")
+
+    # TODO come back and do Q,U correctly
+    def rot90(self, rot):
+        for m in Image.data_members:
+            if self.__dict__[m] is not None:
+                self.__dict__[m] = np.rot90(self.__dict__[m], rot)
+        self.Q *= -1
+        self.U *= -1
+
+    def rotated(self, rot):
+        new_vars = {}
+        for m in Image.data_members:
+            if self.__dict__[m] is not None:
+                new_vars[m] = np.rot90(self.__dict__[m], rot)
+            else:
+                new_vars[m] = None
+
+        return Image(self.properties, new_vars['I'], -new_vars['Q'], -new_vars['U'], new_vars['V'],
+                    tau=new_vars['tau'], tauF=new_vars['tauF'], unpol=new_vars['unpol'],
+                    init_type="multi_arrays_stokes")
+
     # Operators
+    def do_op(self, other, op):
+        """Perform a math operation by iterating over relevant members and doing it with numpy
+        TODO update any cache members we add
+        """
+        if type(other) == Image:
+            new_vars = {}
+            for m in Image.data_members:
+                if self.__dict__[m] is not None and other.__dict__[m] is not None:
+                    new_vars[m] = getattr(self.__dict__[m], op)(other.__dict__[m])
+                else:
+                    new_vars[m] = None
+            return Image(self.properties, new_vars['I'], new_vars['Q'], new_vars['U'], new_vars['V'],
+                        tau=new_vars['tau'], tauF=new_vars['tauF'], unpol=new_vars['unpol'],
+                        init_type="multi_arrays_stokes")
+        else:
+            new_vars = {}
+            for m in Image.data_members:
+                if self.__dict__[m] is not None:
+                    new_vars[m] = getattr(self.__dict__[m], op)(other)
+                else:
+                    new_vars[m] = None
+            return Image(self.properties, new_vars['I'], new_vars['Q'], new_vars['U'], new_vars['V'],
+                        tau=new_vars['tau'], tauF=new_vars['tauF'], unpol=new_vars['unpol'],
+                        init_type="multi_arrays_stokes")
+
+    def do_iop(self, other, op):
+        """Perform a math operation by iterating over relevant members and doing it with numpy
+        TODO update any cache members we add
+        """
+        if type(other) == Image:
+            for m in Image.data_members:
+                if self.__dict__[m] is not None and other.__dict__[m] is not None:
+                    getattr(self.__dict__[m], op)(other.__dict__[m])
+            return self
+        else:
+            for m in Image.data_members:
+                if self.__dict__[m] is not None:
+                    getattr(self.__dict__[m], op)(other)
+            return self
+
+    def __sub__(self, other):
+        """Difference images or subtract a constant"""
+        return self.do_op(other, "__sub__")
+    def __add__(self, other):
+        """Add image values or a constant factor"""
+        return self.do_op(other, "__add__")
+    def __mul__(self, other):
+        """Multiply images (why?) or rescale by factor"""
+        return self.do_op(other, "__mul__")
+    def __truediv__(self, other):
+        """Elementwise division or divide by factor"""
+        return self.do_op(other, "__truediv__")
+    def __isub__(self, other):
+        """Difference images or subtract a constant"""
+        return self.do_iop(other, "__isub__")
     def __iadd__(self, other):
-        self.I += other.I
-        self.Q += other.Q
-        self.U += other.U
-        self.V += other.V
-        # TODO if not none
-        self.tau += other.tau
-        self.tauF += other.tauF
-        self.unpol += other.unpol
-        return self
-    
+        """Add image values or a constant factor"""
+        return self.do_iop(other, "__iadd__")
+    def __imul__(self, other):
+        """Multiply images (why?) or rescale by factor"""
+        return self.do_iop(other, "__imul__")
     def __itruediv__(self, other):
-        """Divide image quantities. Only defined for scalars, only needed for averages"""
-        self.I /= other
-        self.Q /= other
-        self.U /= other
-        self.V /= other
-        # TODO if not none
-        self.tau /= other
-        self.tauF /= other
-        self.unpol /= other
-        return self
+        """Elementwise division or divide by factor"""
+        return self.do_iop(other, "__itruediv__")

@@ -6,17 +6,35 @@ import h5py
 from imtools.image import Image
 
 
+def read_image_parameters(fname, load_fluid_header=False):
+    infile = h5py.File(fname, "r")
+    header = hdf5_to_dict(infile['header'])
+    if load_fluid_header:
+        header.update(hdf5_to_dict(infile['fluid_header']))
+    for key in infile.keys():
+        if key not in ['header', 'fluid_header', 'pol', 'unpol', 'tau']:
+            header[key] = infile[key][()]
+    infile.close()
+    return header
+
 def read_image_array(fname):
-    """Sometimes you just need some numbers"""
-    infile = h5py.File(fname)
+    """Sometimes you just need some numbers fast.
+    Relies on ipole format, only use on EHT HDF5 library
+    """
+    infile = h5py.File(fname, "r")
     pol = infile['pol'][:4]
+    infile.close()
     return pol
 
 # TODO mutable default arg is probably v bad
-def read_image(fname, parameters={}, load_fluid_header=False):
+def read_image(fname, parameters={}, load_fluid_header=False, format_hint="ipole"):
     """Read image from the given path or file object.
     @param fname: name (preferably) of file.  Can be hdf5 file object
     @param parameters: Anything that should be added to the Image parameters
+    @param load_fluid_header: Whether to load all the GRMHD parameters in ipole HDF5 images
+    @param format_hint: resolve ambiguous text file image formats. Currently used for:
+        * "odyssey": use odyssey format for 8-column files: alpha, beta, I, Q, U, V, unpol, tau
+        * "ipole": use ipole format for 8-column files: i, j, unpol, I, Q, U, V, tau
 
     @return standard Image object
     """
@@ -27,25 +45,51 @@ def read_image(fname, parameters={}, load_fluid_header=False):
             try:
                 infile = h5py.File(fname, "r")
             except IOError:
-                print("Warning: cannot read ", fname)
+                print("Couldn't read file: ", fname)
                 return None
-            ftype = "ipole_h5"
+            if 'header' in infile:
+                ftype = "ipole_h5"
+            else:
+                ftype = "grtrans_h5"
         elif fname[-4:] == ".dat":
-            infile = np.loadtxt(fname).T
+            try:
+                infile = np.loadtxt(fname).T
+                manage_file = False
+            except OSError:
+                print("Couldn't read file: ", fname)
+                return None
+            if infile.shape[0] == 8:
+                if format_hint == "odyssey":
+                    ftype = "odyssey_dat_8"
+                else:
+                    ftype = "ipole_dat_8"
             if infile.shape[0] == 7:
                 ftype = "ipole_dat_7"
             elif infile.shape[0] == 6:
                 ftype = "ipole_dat_6"
+        elif fname[-4:] == ".npy":
+            infile = np.load(fname)
+            manage_file = False # We're done with the file now
+            ftype = "grtrans_npy"
     elif isinstance(fname, h5py.File):
         # Please don't hand us files, but we will try to interpret if you do
         manage_file = False
         infile = fname
         fname = infile.filename
-        ftype = "ipole_h5"
+        if 'header' in infile:
+            ftype = "ipole_h5"
+        else:
+            ftype = "grtrans_h5"
 
     if ftype is None:
-        print("Warning: unknown file {}".format(fname))
+        print("Unknown file type: ", fname)
         return None
+
+    # Default optional parameters to None/empty
+    unpol_data = None
+    tauF = None
+    tau = None
+    header = {}
 
     if ftype == "ipole_h5":
         try:
@@ -62,19 +106,46 @@ def read_image(fname, parameters={}, load_fluid_header=False):
         except KeyError:
             print("Warning: unable to open object in file ", fname)
             return None
-    elif ftype == "ipole_dat_7":
-        imres = np.sqrt(infile.shape[1])
-        pol_data = infile[3:7].reshape(4,imres,imres)
+    elif ftype == "grtrans_h5":
+        # Grtrans output is in the form [stokes, px_num, freq].  We don't care about the last one and want to split the second one
+        # Then we want stokes index last
+        # python wrapper for grtrans ensures this is already in Jy, also note grtrans will only output n_stokes of full matrix
+        try:
+            ImRes = int(np.sqrt(infile['ivals'].shape[1]))
+            pol_data = infile['ivals'][:,:,0].reshape(4,ImRes,ImRes).transpose(2,1,0)
+            # Correct the Q,U convention
+            pol_data[:,:,1] *= -1
+            pol_data[:,:,2] *= -1
+        except KeyError:
+            print("Warning: unable to open object in file ", fname)
+            return None
+    elif ftype == "grtrans_npy":
+        # Numpy files from Jason are corrected and image-only, so:
+        pol_data = infile
+    elif ftype == "odyssey_dat_8":
+        # Odyssey 8-column format: alpha, beta, I, Q, U, V, unpol, tau
+        imres = int(np.sqrt(infile.shape[1]))
+        pol_data = infile[2:6].reshape(4,imres,imres).transpose(2,1,0)
+        unpol_data = infile[6].reshape(imres,imres)
+        tau = infile[7].reshape(imres,imres)
+        header = parse_name(fname)
+    elif ftype == "ipole_dat_8":
+        # ipole 8-column: i, j, unpol, I, Q, U, V, tauF
+        imres = int(np.sqrt(infile.shape[1]))
         unpol_data = infile[2].reshape(imres,imres)
+        pol_data = infile[3:7].reshape(4,imres,imres).transpose(2,1,0)
         tauF = infile[7].reshape(imres,imres)
-        tau = None
+        header = parse_name(fname)
+    elif ftype == "ipole_dat_7":
+        # ipole 7-column: i, j, unpol, I, Q, U, V
+        imres = int(np.sqrt(infile.shape[1]))
+        unpol_data = infile[2].reshape(imres,imres)
+        pol_data = infile[3:7].reshape(4,imres,imres).transpose(2,1,0)
         header = parse_name(fname)
     elif ftype == "ipole_dat_6":
-        imres = np.sqrt(infile.shape[1])
-        pol_data = infile[2:6].reshape(4,imres,imres)
-        unpol_data = None
-        tauF = infile[6].reshape(imres,imres)
-        tau = None
+        # Common 6-column: i, j, I, Q, U, V
+        imres = int(np.sqrt(infile.shape[1]))
+        pol_data = infile[2:6].reshape(4,imres,imres).transpose(2,1,0)
         header = parse_name(fname)
 
     header['fname'] = fname # We probably want to carry this around, just in case
@@ -83,6 +154,7 @@ def read_image(fname, parameters={}, load_fluid_header=False):
         infile.close()
 
     return Image({**header, **parameters}, pol_data, tau=tau, tauF=tauF, unpol=unpol_data)
+
 
 
 def hdf5_to_dict(h5grp):
@@ -125,5 +197,6 @@ def decode_all(bytes_dict):
     return bytes_dict
 
 def parse_name(fname):
-    # TODO
+    # This is left available, but currently there don't seem to be
+    # "libraries" of dat files with consistent naming schemes
     return {}
