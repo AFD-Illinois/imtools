@@ -16,5 +16,5 @@ if __name__ == "__main__":
     image = read_image(sys.argv[1])
 
     # create plots
-    generate_plot_pol(image, fname.replace(".h5",".png")) #TODO current folder instead of original?
+    generate_plot_pol(image, fname.replace(".h5",".png"))
 
