@@ -27,7 +27,7 @@ def read_image_array(fname):
     return pol
 
 # TODO mutable default arg is probably v bad
-def read_image(fname, parameters={}, load_fluid_header=False, format_hint="ipole"):
+def read_image(fname, parameters={}, load_fluid_header=False, format_hint="ipole", name=None):
     """Read image from the given path or file object.
     @param fname: name (preferably) of file.  Can be hdf5 file object
     @param parameters: Anything that should be added to the Image parameters
@@ -35,6 +35,7 @@ def read_image(fname, parameters={}, load_fluid_header=False, format_hint="ipole
     @param format_hint: resolve ambiguous text file image formats. Currently used for:
         * "odyssey": use odyssey format for 8-column files: alpha, beta, I, Q, U, V, unpol, tau
         * "ipole": use ipole format for 8-column files: i, j, unpol, I, Q, U, V, tau
+    @param name: Optional. Used in various plotting & comparison scripts as an identifier
 
     @return standard Image object
     """
@@ -66,7 +67,10 @@ def read_image(fname, parameters={}, load_fluid_header=False, format_hint="ipole
             if infile.shape[0] == 7:
                 ftype = "ipole_dat_7"
             elif infile.shape[0] == 6:
-                ftype = "ipole_dat_6"
+                if format_hint == "odyssey":
+                    ftype = "odyssey_dat_6"
+                else:
+                    ftype = "ipole_dat_6"
         elif fname[-4:] == ".npy":
             infile = np.load(fname)
             manage_file = False # We're done with the file now
@@ -125,21 +129,21 @@ def read_image(fname, parameters={}, load_fluid_header=False, format_hint="ipole
     elif ftype == "odyssey_dat_8":
         # Odyssey 8-column format: alpha, beta, I, Q, U, V, unpol, tau
         imres = int(np.sqrt(infile.shape[1]))
-        pol_data = infile[2:6].reshape(4,imres,imres).transpose(2,1,0)
+        pol_data = infile[2:6].reshape(4,imres,imres).transpose(1,2,0)
         unpol_data = infile[6].reshape(imres,imres)
         tau = infile[7].reshape(imres,imres)
         header = parse_name(fname)
     elif ftype == "ipole_dat_8":
         # ipole 8-column: i, j, unpol, I, Q, U, V, tauF
         imres = int(np.sqrt(infile.shape[1]))
-        unpol_data = infile[2].reshape(imres,imres)
+        unpol_data = infile[2].reshape(imres,imres).T
         pol_data = infile[3:7].reshape(4,imres,imres).transpose(2,1,0)
         tauF = infile[7].reshape(imres,imres)
         header = parse_name(fname)
     elif ftype == "ipole_dat_7":
         # ipole 7-column: i, j, unpol, I, Q, U, V
         imres = int(np.sqrt(infile.shape[1]))
-        unpol_data = infile[2].reshape(imres,imres)
+        unpol_data = infile[2].reshape(imres,imres).T
         pol_data = infile[3:7].reshape(4,imres,imres).transpose(2,1,0)
         header = parse_name(fname)
     elif ftype == "ipole_dat_6":
@@ -147,8 +151,16 @@ def read_image(fname, parameters={}, load_fluid_header=False, format_hint="ipole
         imres = int(np.sqrt(infile.shape[1]))
         pol_data = infile[2:6].reshape(4,imres,imres).transpose(2,1,0)
         header = parse_name(fname)
+    elif ftype == "odyssey_dat_6":
+        # Odyssey/BHOSS 6-column: alpha, beta, I, Q, U, V
+        imres = int(np.sqrt(infile.shape[1]))
+        pol_data = infile[2:6].reshape(4,imres,imres).transpose(1,2,0)
+        header = parse_name(fname)
 
-    header['fname'] = fname # We probably want to carry this around, just in case
+    # Carry around some useful things we picked up
+    header['fname'] = fname
+    if name is not None:
+        header['name'] = name
 
     if manage_file:
         infile.close()

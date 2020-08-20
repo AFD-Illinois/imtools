@@ -9,7 +9,13 @@ from imtools.plots import *
 import imtools.stats as stats
 from imtools.grey_plot import plot_I_greyscale
 
-def generate_comparison_unpol(axes, image1, image2, name1, name2, include_diff=True, scale=False, vmax=1.0e-3):
+"""
+Reports take an image(s) or image set(s) and return a figure and array of axes for any further
+modification or saving.
+Some also optionally print statistics.
+"""
+
+def compare_two_unpol(axes, image1, image2, name1, name2, include_diff=True, scale=False, vmax=1.0e-3):
     if scale:
         scalefac = np.mean(image1.I)/np.mean(image2.I)
     else:
@@ -33,48 +39,110 @@ def generate_comparison_unpol(axes, image1, image2, name1, name2, include_diff=T
     print("Ftot {}: {}".format(name2, image2.flux))
     print("{} - {} MSE in I is {}".format(name1, name2, stats.mse(image1.I*scalefac, image2.I)))
 
-def generate_plot_pol(image, outfname, figsize=(8,8), print_stats=True, scaled=True):
-    plt.figure(figsize=figsize)
-    ax1 = plt.subplot(2,2,1)
-    ax2 = plt.subplot(2,2,2)
-    ax3 = plt.subplot(2,2,3)
-    ax4 = plt.subplot(2,2,4)
+def compare(image1, image2, figsize=(8,8)):
+    fig, ax = plt.subplots(2,4,figsize=figsize)
+
+    diff = image2 - image1
+    fig.suptitle("Difference in raw Stokes {} vs {}".format(code1, code2))
+    plot_all_stokes(ax[0,:], diff, relative=True)
+    plot_all_stokes(ax[1,:], image1.rel_diff(image2, clip=(-1,1)), relative=True)
+
+    return fig, ax
+
+
+
+def plot_pol(image, figsize=(8,8), print_stats=True, scaled=True):
+    """Mimics the plot_pol.py script in ipole/scripts"""
+    fig, ax = plt.subplots(2, 2, figsize=figsize)
 
     # Total intensity
-    plot_I(ax1, image, xlabel=False)
+    plot_I(ax[0,0], image, xlabel=False)
     # Quiver on intensity
-    plot_evpa_ticks(ax1, image, n_evpa=30, scaled=scaled)
+    plot_evpa_ticks(ax[0,0], image, n_evpa=30, scaled=scaled)
 
     # Linear polarization fraction
-    plot_lpfrac(ax2, image, xlabel=False, ylabel=False)
+    plot_lpfrac(ax[0,1], image, xlabel=False, ylabel=False)
 
     # evpa
-    plot_evpa_rainbow(ax3, image)
+    plot_evpa_rainbow(ax[1,0], image)
 
     # circular polarization fraction
-    plot_cpfrac(ax4, image, ylabel=False)
+    plot_cpfrac(ax[1,1], image, ylabel=False)
 
     if print_stats:
         # print image-average quantities to command line
-        print("Flux [Jy]:    {0:g} ({1:g} unpol)".format(image.Itot()*image.scale, np.sum(image.unpol)*image.scale))
-        print("I,Q,U,V [Jy]: {0:g} {1:g} {2:g} {3:g}".format(image.Itot()*image.scale,
-                                                            image.Qtot()*image.scale,
-                                                            image.Utot()*image.scale,
-                                                            image.Vtot()*image.scale))
+        print("Flux [Jy]:    {0:g} ({1:g} unpol)".format(image.flux(), image.flux_unpol()))
+        print("I,Q,U,V [Jy]: {0:g} {1:g} {2:g} {3:g}".format(image.Itot(), image.Qtot(),
+                                                            image.Utot(), image.Vtot()))
         print("LP [%]:       {0:g}".format(100.*image.lpfrac_int()))
         print("CP [%]:       {0:g}".format(100.*image.cpfrac_int()))
         print("EVPA [deg]:   {0:g}".format(image.evpa_int()))
 
-    # saving
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig(outfname)
+    return fig, ax
 
-def generate_collage(library, outfname, nimg, greyscale="none", rotated=False, show_spin=False, mad_spins=ImageSet.canon_spins,
+def plot_unpol(image, figsize=(8,8), print_stats=True, scaled=True):
+    """Mimics the plot.py script in ipole/scripts"""
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
+
+    # Total intensity
+    plot_I(ax[0], image, xlabel=False)
+
+    if print_stats:
+        # Print just total flux
+        print("Flux [Jy]:    {0:g}".format(image.flux_unpol()))
+
+    return fig, ax
+
+def plot_stokes_square(image, figsize=(10,8), **kwargs):
+    """Plot a 4-pane image showing each Stokes parameter.
+    Defaults to large 
+    """
+    fig, ax = plt.subplots(2, 2, figsize=figsize)
+    plot_all_stokes(ax.flatten(), image, **kwargs)
+    #subplots_adjust_square(fig, 2, 2)
+    plt.tight_layout()
+    return fig, ax
+
+
+def plot_stokes_line(images, figsize=(12,12), units="Jy", n_stokes=4, **kwargs):
+    """Plot a series of horizontal 4-pane Stokes images, for comparing each parameter down columns
+    Places both colorbars on the right side
+    """
+    fig, ax = plt.subplots(len(images), n_stokes, figsize=figsize)
+
+    # Set consistent vmax.  Doesn't matter which image we key from
+    key_im = images[0]
+    vmax = [np.max(np.abs(key_im.I * key_im.scale_flux(units))),
+            np.max(np.abs(key_im.Q * key_im.scale_flux(units))),
+            np.max(np.abs(key_im.U * key_im.scale_flux(units))),
+            np.max(np.abs(key_im.V * key_im.scale_flux(units)))]
+
+    for i,image in enumerate(images):
+        # Plot each code's Stokes parameters
+        meshes = plot_all_stokes(ax[i,:], image, clean=True, vmax=vmax, n_stokes=n_stokes, **kwargs)
+        ax[i,0].set_ylabel(image.get_name())
+
+    # Finalize figure: names
+    for i in range(n_stokes):
+        ax[0,i].set_title("Stokes {}".format(["I", "Q", "U", "V"][i]))
+
+    # colorbars
+    caxes = subplots_adjust_square(fig, n_stokes, len(images), col_cbars=True)
+    for i in range(n_stokes):
+        cbar = plt.colorbar(meshes[i], cax=fig.add_axes(caxes[i]), orientation='horizontal')
+        cbar.formatter.set_powerlimits((0, 0))
+
+    return fig, ax
+
+def get_snapshots_at(nimg, spins=None, mad_spins=ImageSet.canon_spins, sane_spins=ImageSet.canon_spins,
+                     rhighs=ImageSet.canon_rhighs, rotated=True):
+    return
+
+def collage(library, nimg, greyscale="none", rotated=False, show_spin=False, mad_spins=ImageSet.canon_spins,
                     sane_spins=ImageSet.canon_spins, rhighs=ImageSet.canon_rhighs, figsize=(16,9), zoom=2, blur=0, average=False,
-                    title="", evpa=True, n_evpa=20, duplicate=False, scaled=False, verbose=False):
+                    title="", evpa=True, n_evpa=20, duplicate=False, scaled=False, compress_scale=False, verbose=False):
     """Generate a figure with a collage of all models at a particular snapshot, or averaged
-    @param library: 
-    @param outfname: Save to this output, respects file endings
+    @param library:
     """
     fig = plt.figure(figsize=figsize)
     fig.suptitle(title)
@@ -100,6 +168,11 @@ def generate_collage(library, outfname, nimg, greyscale="none", rotated=False, s
                 # Blur, unless we're building the top half of a contrast "duplicate" figure
                 if blur > 0 and not (duplicate and nrhigh < len(rhighs) / 2):
                     image = image.blurred(blur)
+                    my_n_evpa = n_evpa
+                    did_blur = True
+                else:
+                    my_n_evpa = n_evpa + 5
+                    did_blur = False
 
                 # Rotate by 90 degrees so that bright spot ends up on (or usually somewhere near) the bottom
                 if rotated:
@@ -121,7 +194,7 @@ def generate_collage(library, outfname, nimg, greyscale="none", rotated=False, s
                 else:
                     plot_I(ax, image, zoom=zoom, clean=True)
                     if evpa:
-                        plot_evpa_ticks(ax, image, only_ring=True, n_evpa=n_evpa, scaled=scaled)
+                        plot_evpa_ticks(ax, image, emission_cutoff=(1.0 + (not did_blur)*1.6), n_evpa=my_n_evpa, scaled=scaled, compress_scale=compress_scale)
                 
                 if show_spin and float(spin) != 0.0:
                     ax.arrow(0, 0, *arrow_lim, color='black', head_width=5)
@@ -132,19 +205,17 @@ def generate_collage(library, outfname, nimg, greyscale="none", rotated=False, s
                 if nflux == 0 and nspin == 0:
                     ax.set_ylabel(r"$R_{\mathrm{high}} = $" + rhigh)
 
-    # TODO this needs to be more adaptable
     if greyscale == "half" or greyscale == "full":
-        plt.subplots_adjust(right=0.90, hspace=0, wspace=0) # TODO make sure there's no gaps despite aspect='equal'
-        cax = fig.add_axes([0.91, 0.13, 0.01, 0.745]) # Left, Bottom, 
+        cax = subplots_adjust_square(fig, width, height, global_cbar=True)
         # Just use the last quiver, they're standard if we're doing this
         cbar = plt.colorbar(qv, cax=cax)
         cbar.set_label(r'Fractional Polarization')
-        #cbar.ax.tick_params(labelsize=30)
     else:
-        plt.subplots_adjust(bottom=0.09, top=0.91, hspace=0, wspace=0) # TODO make sure there's no gaps despite aspect='equal'
-    plt.savefig(outfname, dpi=400)
+        subplots_adjust_square(fig, width, height)
 
-def generate_lcs(library, outfname, fn, label, mad_spins=ImageSet.canon_spins, sane_spins=ImageSet.canon_spins, figsize=(15.5,10)):
+    return fig, ax
+
+def lightcurves(library, outfname, fn, label, mad_spins=ImageSet.canon_spins, sane_spins=ImageSet.canon_spins, figsize=(15.5,10)):
     plt.figure(figsize=figsize)
     plt.suptitle( label + " vs t" )
     height = len(library.canon_rhighs)
@@ -186,7 +257,6 @@ def generate_lcs(library, outfname, fn, label, mad_spins=ImageSet.canon_spins, s
                 plt.tick_params(axis='y', left=True, labelleft=True)
             else:
                 plt.tick_params(axis='y', right=True, labelright=True)
-
 
     plt.subplots_adjust(top=0.9, left=0.1, right=0.95, bottom=0.05, hspace=0, wspace=0.06)
     plt.savefig(outfname, dpi=200)
