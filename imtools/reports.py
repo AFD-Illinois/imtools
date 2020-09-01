@@ -1,4 +1,4 @@
-# Useful figures to generate of images
+# reports.py
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -80,12 +80,12 @@ def plot_pol(image, figsize=(8,8), print_stats=True, scaled=True):
 
     return fig, ax
 
-def plot_unpol(image, figsize=(8,8), print_stats=True, scaled=True):
+def plot_unpol(image, figsize=(8,8), print_stats=True, scaled=True, **kwargs):
     """Mimics the plot.py script in ipole/scripts"""
     fig, ax = plt.subplots(1, 1, figsize=figsize)
 
     # Total intensity
-    plot_I(ax[0], image, xlabel=False)
+    plot_I(ax, image, **kwargs)
 
     if print_stats:
         # Print just total flux
@@ -93,25 +93,25 @@ def plot_unpol(image, figsize=(8,8), print_stats=True, scaled=True):
 
     return fig, ax
 
-def plot_stokes_square(image, figsize=(10,8), **kwargs):
+def plot_stokes_square(image, figsize=(8,10), **kwargs):
     """Plot a 4-pane image showing each Stokes parameter.
     Defaults to large 
     """
     fig, ax = plt.subplots(2, 2, figsize=figsize)
-    plot_all_stokes(ax.flatten(), image, **kwargs)
-    #subplots_adjust_square(fig, 2, 2)
-    plt.tight_layout()
+    plot_all_stokes(ax.flatten(), image, layout="square", **kwargs)
+    #plt.subplots_adjust(hspace=0, wspace=0)
+    #plt.tight_layout()
     return fig, ax
 
 
-def plot_stokes_line(images, figsize=(12,12), units="Jy", n_stokes=4, **kwargs):
+def plot_stokes_rows(images, figsize=(12,12), units="Jy", n_stokes=4, key_image=0, **kwargs):
     """Plot a series of horizontal 4-pane Stokes images, for comparing each parameter down columns
     Places both colorbars on the right side
     """
     fig, ax = plt.subplots(len(images), n_stokes, figsize=figsize)
 
-    # Set consistent vmax.  Doesn't matter which image we key from
-    key_im = images[0]
+    # Set consistent vmax. Optional key image
+    key_im = images[key_image]
     vmax = [np.max(np.abs(key_im.I * key_im.scale_flux(units))),
             np.max(np.abs(key_im.Q * key_im.scale_flux(units))),
             np.max(np.abs(key_im.U * key_im.scale_flux(units))),
@@ -138,7 +138,7 @@ def get_snapshots_at(nimg, spins=None, mad_spins=ImageSet.canon_spins, sane_spin
                      rhighs=ImageSet.canon_rhighs, rotated=True):
     return
 
-def collage(library, nimg, greyscale="none", rotated=False, show_spin=False, mad_spins=ImageSet.canon_spins,
+def collage(library, nimg, greyscale="none", evpa_rainbows=False, rotated=False, show_spin=False, mad_spins=ImageSet.canon_spins,
                     sane_spins=ImageSet.canon_spins, rhighs=ImageSet.canon_rhighs, figsize=(16,9), zoom=2, blur=0, average=False,
                     title="", evpa=True, n_evpa=20, duplicate=False, scaled=False, compress_scale=False, verbose=False):
     """Generate a figure with a collage of all models at a particular snapshot, or averaged
@@ -174,10 +174,10 @@ def collage(library, nimg, greyscale="none", rotated=False, show_spin=False, mad
                     my_n_evpa = n_evpa + 5
                     did_blur = False
 
-                # Rotate by 90 degrees so that bright spot ends up on (or usually somewhere near) the bottom
+                # Rotate by 90 degrees so that bright spot ends up on (or somewhere near...) the South
                 if rotated:
-                    # Positive spin -> 163 degrees -> forward jet is South so rot90 CCW
-                    # Negative spin -> 17 degrees -> forward jet is north, CW
+                    # Positive spin -> 163 degrees -> forward jet is North so rot90 CW
+                    # Negative spin -> 17 degrees -> forward jet is South, CCW
                     if float(spin) >= 0:
                         image.rot90(-1)
                         arrow_lim = (-8, 0)
@@ -191,10 +191,13 @@ def collage(library, nimg, greyscale="none", rotated=False, show_spin=False, mad
                 if greyscale == "full" or (greyscale == "half" and not (duplicate and nrhigh < len(rhighs) / 2)):
                     _, qv = plot_I_greyscale(ax, image)
                     #plot_evpa_rainbow(ax, image, zoom=zoom, clean=True)
+                elif evpa_rainbows:
+                    plot_evpa_rainbow(ax, image, clean=True)
                 else:
                     plot_I(ax, image, zoom=zoom, clean=True)
                     if evpa:
                         plot_evpa_ticks(ax, image, emission_cutoff=(1.0 + (not did_blur)*1.6), n_evpa=my_n_evpa, scaled=scaled, compress_scale=compress_scale)
+                
                 
                 if show_spin and float(spin) != 0.0:
                     ax.arrow(0, 0, *arrow_lim, color='black', head_width=5)

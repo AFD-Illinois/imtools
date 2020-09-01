@@ -1,12 +1,17 @@
-# Reading files
+# io.py
 
 import numpy as np
 import h5py
 
 from imtools.image import Image
 
+"""
+Read (parts of) image files
+"""
 
 def read_image_parameters(fname, load_fluid_header=False):
+    """Read just the parameters dict.  Useful if reading many images run with the same parameters.
+    """
     infile = h5py.File(fname, "r")
     header = hdf5_to_dict(infile['header'])
     if load_fluid_header:
@@ -19,7 +24,7 @@ def read_image_parameters(fname, load_fluid_header=False):
 
 def read_image_array(fname):
     """Sometimes you just need some numbers fast.
-    Relies on ipole format, only use on EHT HDF5 library
+    Only supports ipole HDF5 format!
     """
     infile = h5py.File(fname, "r")
     pol = infile['pol'][:4]
@@ -29,7 +34,7 @@ def read_image_array(fname):
 # TODO mutable default arg is probably v bad
 def read_image(fname, parameters={}, load_fluid_header=False, format_hint="ipole", name=None):
     """Read image from the given path or file object.
-    @param fname: name (preferably) of file.  Can be hdf5 file object
+    @param fname: name (preferably) of file.  Limited support for hdf5 file objects if that's useful for performance
     @param parameters: Anything that should be added to the Image parameters
     @param load_fluid_header: Whether to load all the GRMHD parameters in ipole HDF5 images
     @param format_hint: resolve ambiguous text file image formats. Currently used for:
@@ -71,12 +76,13 @@ def read_image(fname, parameters={}, load_fluid_header=False, format_hint="ipole
                     ftype = "odyssey_dat_6"
                 else:
                     ftype = "ipole_dat_6"
+            elif infile.shape[0] == 3:
+                ftype = "ibothros_dat_3"
         elif fname[-4:] == ".npy":
             infile = np.load(fname)
             manage_file = False # We're done with the file now
             ftype = "grtrans_npy"
     elif isinstance(fname, h5py.File):
-        # Please don't hand us files, but we will try to interpret if you do
         manage_file = False
         infile = fname
         fname = infile.filename
@@ -111,9 +117,11 @@ def read_image(fname, parameters={}, load_fluid_header=False, format_hint="ipole
             print("Warning: unable to open object in file ", fname)
             return None
     elif ftype == "grtrans_h5":
-        # Grtrans output is in the form [stokes, px_num, freq].  We don't care about the last one and want to split the second one
-        # Then we want stokes index last
-        # python wrapper for grtrans ensures this is already in Jy, also note grtrans will only output n_stokes of full matrix
+        # Grtrans output is in the form [stokes, px_num, freq].
+        # We don't care about the last one and want to split the second one,
+        # then we want stokes index last
+        # The python wrapper for grtrans ensures this is already in Jy,
+        # also note grtrans will only output n_stokes of full matrix
         try:
             ImRes = int(np.sqrt(infile['ivals'].shape[1]))
             pol_data = infile['ivals'][:,:,0].reshape(4,ImRes,ImRes).transpose(2,1,0)
@@ -153,6 +161,10 @@ def read_image(fname, parameters={}, load_fluid_header=False, format_hint="ipole
         header = parse_name(fname)
     elif ftype == "odyssey_dat_6":
         # Odyssey/BHOSS 6-column: alpha, beta, I, Q, U, V
+        imres = int(np.sqrt(infile.shape[1]))
+        pol_data = infile[2:6].reshape(4,imres,imres).transpose(1,2,0)
+        header = parse_name(fname)
+    elif ftype == "ibothros_dat_3":
         imres = int(np.sqrt(infile.shape[1]))
         pol_data = infile[2:6].reshape(4,imres,imres).transpose(1,2,0)
         header = parse_name(fname)

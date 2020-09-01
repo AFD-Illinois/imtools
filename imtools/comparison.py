@@ -1,15 +1,19 @@
 # Overall statistics and figures for comparisons of >2 closely-related images
+# Probably not useful outside of the polarized comparison, and maybe bug-hunting
 
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
-from imtools.reports import *
+from imtools.reports import plot_stokes_rows
 
 def generate_table(data, fn):
     """Generate a comparison table between several images.
     Takes a dict 'data' of Image objects keyed by names, and an operation 'fn' which
     takes two image objects and returns a list of 4 results (see e.g. 'stats.mses')
+
+    Returns a 2D array of each comparator output, indexed by the keys() list
+    in each direction (i.e. table[i,i] == 0 for most comparison metrics)
     """
     names = list(data.keys())
     nnames = len(names)
@@ -26,6 +30,9 @@ def generate_table(data, fn):
     return table
 
 def table_color_plot(table, names, cmap='RdBu_r', figsize=(14,4)):
+    """Plot a 2D array indexed by the list 'names' on each axis.
+    Usually for plotting output of generate_table for comparisons
+    """
     names = list(names)
     nnames = len(names)
     fig, ax = plt.subplots(1, 4, figsize=figsize)
@@ -43,6 +50,9 @@ def table_color_plot(table, names, cmap='RdBu_r', figsize=(14,4)):
     return fig, ax
 
 def print_table(table, names, color=False, cmap='RdBu_r', figsize=(6, 10)):
+    """Make a table from a 2D array indexed by the list 'names' on each axis.
+    Usually for showing output of generate_table for comparisons
+    """
     names = list(names)
     # Initialize the colormap
     colormap = matplotlib.cm.get_cmap(cmap)
@@ -67,7 +77,11 @@ def print_table(table, names, color=False, cmap='RdBu_r', figsize=(6, 10)):
 
     return fig, ax
 
-def all_compares_code(data, name, abs=True):
+def compare_all_with(data, name, abs=True):
+    """Compare each other element in 'data' with the named element
+    abs specifies an absolute difference, otherwise the relative difference is taken
+    relative diff is clipped to [-1,1]
+    """
     if abs:
         compare_list = [data[n] - data[name] for n in data.keys() if n != name]
     else:
