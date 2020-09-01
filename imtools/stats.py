@@ -1,7 +1,11 @@
-# Tools for calculating derived quantities (image2 images or reductions) based on an image.
-# Should all be in the form def q(image) to be accessible as image.
+# stats.py
 
 import numpy as np
+
+"""
+Tools for calculating derived quantities (image2 images or reductions) based on an image.
+Should all be in the form def q(image) to be accessible as image.
+"""
 
 # Comparison quantities
 def mse(var1, var2):

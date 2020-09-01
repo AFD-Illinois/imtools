@@ -1,3 +1,4 @@
+# image.py
 
 import numpy as np
 import h5py
@@ -22,23 +23,27 @@ class Image(object):
                     init_type="one_array_forward"):
         """Initialize an Image object from data.
 
-        @param: properties: dict of image properties.  No standard format on account of there's no standard format.
-        Generally model and lib expect ipole stuff to be present, see ipole image format doc on Illinois wiki:
+        @param: properties: dict of image properties.
+        This has no standard format on account of there's no standard image format.
+        Generally this library expects the ipole metadata to be present here,
+        see ipole image format doc on Illinois wiki:
         https://github.com/AFD-Illinois/docs/wiki/Image-Format
 
         @param array1, array2, array3, array4: Stokes parameters in CGS. Contents interpreted based on init_type.
             one_array_forward: array of Stokes in index-first form i,j,S.
             one_array_backward: array in Stokes-first form S,i,j.
             multi_arrays_stokes: four arrays size i,j representing I,Q,U,V.
-            multi_arrays_rl: NOT IMPLEMENTED
+            multi_arrays_rl: NOT IMPLEMENTED -- someday could initialize from right- and left-circular components
 
-            In all cases, i, j, should "look correct" with North pointing upward and looking as observed from Earth,
-            when plotted either with meshgrid, or imshow(origin='lower')
+            In all cases, i, j, should be ordered such that when plotted wiht meshgrid or imshow(origin='lower'),
+            the resulting image "looks correct" with North pointing in the +y direction
 
         @param init_type: see above
         @param tau: if not none, set optical depth member tau to this array
         @param tauF: if not none, set Faraday depth member tauF to this array
-        @param unpol: if not none, add a version of stokes I with unpolarized transport
+        @param unpol: if not none, add a version of stokes I computed with unpolarized transport.
+        Note that unpolarized images are better off setting just stokes I --
+        this member is for comparisons and sanity checks
         """
         # Leave the possibility for initializing ehtim-style RL images
         if init_type == "one_array_forward":

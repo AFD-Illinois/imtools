@@ -1,9 +1,12 @@
-# Different plots that can be made of images, or combinations of images
-# These are the functions which use an existing axis, for functions that generate a figure see reports.py
+# plots.py
 
 import numpy as np
 
-from imtools.image import Image
+"""
+Different plots that can be made of images, or combinations of images.
+These are the functions which use an existing axis, for more complete
+functions which return a whole figure see reports.py
+"""
 
 def plot_var(ax, var, image, fov_units="muas", xlabel=True, ylabel=True, add_cbar=True, clabel=None, zoom=1, clean=False, **kwargs):
     """General function for plotting a set of pixels, given some options about how"""
@@ -12,10 +15,6 @@ def plot_var(ax, var, image, fov_units="muas", xlabel=True, ylabel=True, add_cba
     X, Y = np.meshgrid(np.linspace(extent_og[0], extent_og[1], image.nx+1),
                         np.linspace(extent_og[2], extent_og[3], image.ny+1))
     mesh = ax.pcolormesh(X, Y, var, **kwargs)
-
-    # Window and aspect
-    ax.axis([extent_og[0]/zoom, extent_og[1]/zoom, extent_og[2]/zoom, extent_og[3]/zoom])
-    ax.set_aspect('equal')
 
     # Colorbar
     if add_cbar and not clean:
@@ -52,6 +51,12 @@ def plot_var(ax, var, image, fov_units="muas", xlabel=True, ylabel=True, add_cba
         else:
             ax.set_yticklabels([])
 
+    # Set window and aspect last to ensure they survive shenanigans
+    ax.set_aspect('equal')
+    window = [extent_og[0]/zoom, extent_og[1]/zoom, extent_og[2]/zoom, extent_og[3]/zoom]
+    ax.axis(window)
+    #print("Window:", window)
+
     return mesh
 
 def plot_I(ax, image, units="Jy", cmap='afmhot', add_title=True, clean=False, tag="", **kwargs):
@@ -60,9 +65,9 @@ def plot_I(ax, image, units="Jy", cmap='afmhot', add_title=True, clean=False, ta
 
     if add_title and not clean:
         if tag is not None:
-            ax.set_title("{} Stokes I [{}]".format(tag, units))
+            ax.set_title("{} Stokes I".format(tag))
         else:
-            ax.set_title("{} Stokes I [{}]".format(image.get_name(), units))
+            ax.set_title("{} Stokes I".format(image.get_name()))
 
     return mesh
 
@@ -81,9 +86,9 @@ def plot_one_stokes(ax, image, num, units="Jy", cmap='RdBu_r', vmax=None, add_ti
 
     if add_title and not clean:
         if tag is not None:
-            ax.set_title("{} Stokes {} [{}]".format(tag, ["I", "Q", "U", "V"][num], units))
+            ax.set_title("{} Stokes {}".format(tag, ["I", "Q", "U", "V"][num]))
         else:
-            ax.set_title("{} Stokes {} [{}]".format(image.get_name(), ["I", "Q", "U", "V"][num], units))
+            ax.set_title("{} Stokes {}".format(image.get_name(), ["I", "Q", "U", "V"][num]))
 
     return mesh
 
@@ -97,7 +102,7 @@ def plot_V(ax, image, **kwargs):
     """Plot Stokes V"""
     return plot_one_stokes(ax, image, 3, **kwargs)
 
-def plot_all_stokes(axes, image, relative=False, vmax=None, units="Jy", n_stokes=4, **kwargs):
+def plot_all_stokes(axes, image, relative=False, vmax=None, units="Jy", n_stokes=4, layout="none", **kwargs):
     """Plot all raw Stokes parameters on a set of 4 axes.
     If vmax is given as a list, use the respective elements as vmax for I,Q,U,V
     """
@@ -108,6 +113,16 @@ def plot_all_stokes(axes, image, relative=False, vmax=None, units="Jy", n_stokes
     except TypeError:
         vmax = [vmax, vmax, vmax, vmax]
 
+    if layout == "line":
+        xlabel_flags = [True, True, True, True]
+        ylabel_flags = [True, False, False, False]
+    elif layout == "square":
+        xlabel_flags = [False, False, True, True]
+        ylabel_flags = [True, False, True, False]
+    else:
+        xlabel_flags = [True, True, True, True]
+        ylabel_flags = [True, True, True, True]
+
     meshes = []
     for i in range(n_stokes):
         if units == "cgs":
@@ -117,9 +132,11 @@ def plot_all_stokes(axes, image, relative=False, vmax=None, units="Jy", n_stokes
         else:
             clabel = None
         if i == 0 and not relative:
-            meshes.append( plot_I(ax[i], image, clabel=clabel, vmax=vmax[i], **kwargs) )
+            meshes.append( plot_I(ax[i], image, clabel=clabel, vmax=vmax[i],
+                                  xlabel=xlabel_flags[i], ylabel=ylabel_flags[i], **kwargs) )
         else:
-            meshes.append( plot_one_stokes(ax[i], image, i, clabel=clabel, vmax=vmax[i], **kwargs) )
+            meshes.append( plot_one_stokes(ax[i], image, i, clabel=clabel, vmax=vmax[i],
+                                           xlabel=xlabel_flags[i], ylabel=ylabel_flags[i], **kwargs) )
 
     return meshes
 

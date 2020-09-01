@@ -9,6 +9,10 @@ def from_eht_im(im):
     #return Image(self.properties.copy(), I, Q, U, V, tau=tau, tauF=tauF, unpol=unpol, init_type="multi_arrays_stokes")
 
 def to_eht_im(image):
+    """Convert an imtools image to ehtim Image object
+
+    "Don't reinvent the wheel.  Reinvent the sled and strap wheels on it afterward"
+    """
     dsource = image.properties['dsource']          # distance to source in cm
     jyscale = image.properties['scale']            # convert cgs intensity -> Jy flux density
     rf = image.properties['freqcgs']               # in cgs
