@@ -1,3 +1,37 @@
+"""
+ File: io.py
+ 
+ BSD 3-Clause License
+ 
+ Copyright (c) 2020, AFD Group at UIUC
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+ 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ 
+ 3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
+
 # io.py
 
 import numpy as np
@@ -8,6 +42,12 @@ from imtools.image import Image
 """
 Read (parts of) image files
 """
+
+def read(fname, **kwargs):
+    """Read a file.  In future will try to intelligently guess image/movie/etc
+    """
+    return read_image(fname, **kwargs)
+
 
 def read_image_parameters(fname, load_fluid_header=False):
     """Read just the parameters dict.  Useful if reading many images run with the same parameters.
@@ -32,17 +72,24 @@ def read_image_array(fname):
     return pol
 
 # TODO mutable default arg is probably v bad
-def read_image(fname, parameters={}, load_fluid_header=False, format_hint="ipole", name=None):
+def read_image(fname, name=None, load_fluid_header=False, parameters={}, format_hint="ipole", units="cgs", only_unpolarized=False):
     """Read image from the given path or file object.
     @param fname: name (preferably) of file.  Limited support for hdf5 file objects if that's useful for performance
-    @param parameters: Anything that should be added to the Image parameters
+    @param name: Optionally add a name as an identifier in plots/text output
     @param load_fluid_header: Whether to load all the GRMHD parameters in ipole HDF5 images
+    @param parameters: Anything that should be added to the Image parameters
     @param format_hint: resolve ambiguous text file image formats. Currently used for:
         * "odyssey": use odyssey format for 8-column files: alpha, beta, I, Q, U, V, unpol, tau
         * "ipole": use ipole format for 8-column files: i, j, unpol, I, Q, U, V, tau
-    @param name: Optional. Used in various plotting & comparison scripts as an identifier
+    @param units: whether to renormalize
+    @param only_unpolarized: even if the image has polarization data, load just the unpolarized version into stokes I instead
 
     @return standard Image object
+
+    Caveats:
+    * Imtools expects the array to consist of CGS intensity values.  Images in Jy/px will have to be renormalized
+    * Filetype guessing is best-effort especially for textfiles.  Parameters even more so.  More consistent "models" are coming
+    * non-square images are supported only in the ipole HDF5 format.
     """
     if isinstance(fname, str):
         manage_file = True
@@ -96,6 +143,7 @@ def read_image(fname, parameters={}, load_fluid_header=False, format_hint="ipole
         return None
 
     # Default optional parameters to None/empty
+    only_use_unpol = only_unpolarized
     unpol_data = None
     tauF = None
     tau = None
@@ -166,7 +214,8 @@ def read_image(fname, parameters={}, load_fluid_header=False, format_hint="ipole
         header = parse_name(fname)
     elif ftype == "ibothros_dat_3":
         imres = int(np.sqrt(infile.shape[1]))
-        pol_data = infile[2:6].reshape(4,imres,imres).transpose(1,2,0)
+        unpol_data = infile[2].reshape(imres,imres).T
+        only_use_unpol = True # forced to use unpolarized data
         header = parse_name(fname)
 
     # Carry around some useful things we picked up
@@ -176,6 +225,12 @@ def read_image(fname, parameters={}, load_fluid_header=False, format_hint="ipole
 
     if manage_file:
         infile.close()
+    
+    if only_use_unpol:
+        nx = unpol_data.shape[0]
+        ny = unpol_data.shape[1]
+        pol_data = np.zeros((nx,ny,4))
+        pol_data[:,:,0] = unpol_data
 
     return Image({**header, **parameters}, pol_data, tau=tau, tauF=tauF, unpol=unpol_data)
 

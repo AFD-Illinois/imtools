@@ -1,3 +1,37 @@
+"""
+ File: plots.py
+ 
+ BSD 3-Clause License
+ 
+ Copyright (c) 2020, AFD Group at UIUC
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+ 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ 
+ 3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
+
 # plots.py
 
 import numpy as np
@@ -8,13 +42,26 @@ These are the functions which use an existing axis, for more complete
 functions which return a whole figure see reports.py
 """
 
-def plot_var(ax, var, image, fov_units="muas", xlabel=True, ylabel=True, add_cbar=True, clabel=None, zoom=1, clean=False, **kwargs):
-    """General function for plotting a set of pixels, given some options about how"""
+def plot_var(ax, var, image, fov_units="muas", xlabel=True, ylabel=True, add_cbar=True,
+             clabel=None, zoom=1, clean=False, symmetric=False, **kwargs):
+    """General function for plotting a set of pixels, given some options about how to do it
+    """
     extent_og = image.extent(fov_units)
 
     X, Y = np.meshgrid(np.linspace(extent_og[0], extent_og[1], image.nx+1),
                         np.linspace(extent_og[2], extent_og[3], image.ny+1))
-    mesh = ax.pcolormesh(X, Y, var, **kwargs)
+    
+    # Symmetric colorbar option
+    if symmetric:
+        # Take vmax if speccd, otherwise use a symmetric scale around the largest abs()
+        if 'vmax' not in kwargs or kwargs['vmax'] is None:
+            max_abs = max(np.abs(np.max(var)), np.abs(np.min(var)))
+            max_abs = min(max_abs, 1e3) # Clip to stay remotely reasonable
+        else:
+            max_abs = kwargs['vmax']
+        mesh = ax.pcolormesh(X, Y, var, vmax=max_abs, vmin=-max_abs, **kwargs)
+    else:
+        mesh = ax.pcolormesh(X, Y, var, **kwargs)
 
     # Colorbar
     if add_cbar and not clean:
@@ -67,22 +114,16 @@ def plot_I(ax, image, units="Jy", cmap='afmhot', add_title=True, clean=False, ta
         if tag is not None:
             ax.set_title("{} Stokes I".format(tag))
         else:
-            ax.set_title("{} Stokes I".format(image.get_name()))
+            ax.set_title("{} Stokes I".format(image.name))
 
     return mesh
 
-def plot_one_stokes(ax, image, num, units="Jy", cmap='RdBu_r', vmax=None, add_title=True, clean=False, tag=None, **kwargs):
+def plot_one_stokes(ax, image, num, units="Jy", cmap='bwr', vmax=None, add_title=True, clean=False, tag=None, **kwargs):
     """Plot the Stokes parameter indicated by num, where I==0, Q==1, etc."""
     var = image.get_stokes(num)
-    # Take vmax if speccd, otherwise use a symmetric scale around the largest abs()
-    if vmax is None:
-        max_abs = max(np.abs(np.max(var)), np.abs(np.min(var)))
-        max_abs = min(max_abs, 1e3) # Clip to stay remotely reasonable
-    else:
-        max_abs = vmax
 
     mesh = plot_var(ax, image.get_stokes(num) * image.scale_flux(units), image, clean=clean, cmap=cmap,
-                    vmin=-max_abs, vmax=max_abs, **kwargs)
+                    symmetric=True, **kwargs)
 
     if add_title and not clean:
         if tag is not None:
@@ -102,7 +143,16 @@ def plot_V(ax, image, **kwargs):
     """Plot Stokes V"""
     return plot_one_stokes(ax, image, 3, **kwargs)
 
-def plot_all_stokes(axes, image, relative=False, vmax=None, units="Jy", n_stokes=4, layout="none", **kwargs):
+def plot_lp(ax, image, cmap='afmhot', clean=False, **kwargs):
+    """Plot the percentage of emission which is linearly polarized.
+    """
+    ax.set_facecolor('black')
+    mesh = plot_var(ax, np.sqrt(image.Q**2 + image.U**2), image, cmap=cmap, clean=clean, **kwargs)
+    if not clean:
+        ax.set_title("LP Emission")
+    return mesh
+
+def plot_all_stokes(axes, image, relative=False, vmax=None, units="Jy", n_stokes=4, layout="none", polar=False, **kwargs):
     """Plot all raw Stokes parameters on a set of 4 axes.
     If vmax is given as a list, use the respective elements as vmax for I,Q,U,V
     """
@@ -116,36 +166,47 @@ def plot_all_stokes(axes, image, relative=False, vmax=None, units="Jy", n_stokes
     if layout == "line":
         xlabel_flags = [True, True, True, True]
         ylabel_flags = [True, False, False, False]
+        clabel_flags = [False, False, False, True]
     elif layout == "square":
         xlabel_flags = [False, False, True, True]
         ylabel_flags = [True, False, True, False]
+        clabel_flags = [False, True, False, True]
     else:
         xlabel_flags = [True, True, True, True]
         ylabel_flags = [True, True, True, True]
+        clabel_flags = [True, True, True, True]
 
     meshes = []
     for i in range(n_stokes):
-        if units == "cgs":
+        if units == "cgs" and clabel_flags[i]:
             clabel = "cgs"
-        elif "Jy" in units:
+        elif "Jy" in units and clabel_flags[i]:
             clabel = "Jy/px"
         else:
             clabel = None
-        if i == 0 and not relative:
+        if not relative and i == 0:
             meshes.append( plot_I(ax[i], image, clabel=clabel, vmax=vmax[i],
                                   xlabel=xlabel_flags[i], ylabel=ylabel_flags[i], **kwargs) )
+        elif polar and not relative and i == 1:
+            meshes.append( plot_lp(ax[i], image, clabel=clabel,
+                                   xlabel=xlabel_flags[i], ylabel=ylabel_flags[i], **kwargs) )
+        elif polar and not relative and i == 2:
+            meshes.append( plot_evpa_rainbow(ax[i], image, clabel=clabel,
+                                             xlabel=xlabel_flags[i], ylabel=ylabel_flags[i], **kwargs) )
         else:
             meshes.append( plot_one_stokes(ax[i], image, i, clabel=clabel, vmax=vmax[i],
                                            xlabel=xlabel_flags[i], ylabel=ylabel_flags[i], **kwargs) )
 
     return meshes
 
-def plot_lpfrac(ax, image, **kwargs):
+def plot_lpfrac(ax, image, clean=False, **kwargs):
     """Plot the percentage of emission which is linearly polarized.
     """
     ax.set_facecolor('black')
-    plot_var(ax, 100*image.lpfrac(mask_zero=True), image, cmap='jet', vmin=0., vmax=100., **kwargs)
-    ax.set_title("LP [%]")
+    mesh = plot_var(ax, 100*image.lpfrac(mask_zero=True), image, cmap='jet', vmin=0., vmax=100., clean=clean, **kwargs)
+    if not clean:
+        ax.set_title("LP [%]")
+    return mesh
 
 def plot_cpfrac(ax, image, **kwargs):
     """Plot the percentage of emission which is circularly polarized.  Signed.
@@ -157,32 +218,45 @@ def plot_cpfrac(ax, image, **kwargs):
     if np.isnan(vext): vext = 10.
 
     ax.set_facecolor('black')
-    plot_var(ax, 100*image.cpfrac(mask_zero=True), image, cmap='jet', vmin=0., vmax=100., **kwargs)
+    mesh = plot_var(ax, 100*image.cpfrac(mask_zero=True), image, cmap='jet', vmin=0., vmax=100., **kwargs)
     ax.set_title("CP [%]")
+    return mesh
 
 def plot_evpa_rainbow(ax, image, evpa_conv="EofN", clean=False, **kwargs):
     """EVPA rainbow plot -- color pixels by angle without regard to polarized emission fraction
     (as in ipole's bundled plot_pol.py)
     """
     ax.set_facecolor('black')
-    plot_var(ax, image.evpa(evpa_conv, mask_zero=True), image, cmap='hsv', vmin=-90., vmax=90., clean=clean, **kwargs)
+    mesh = plot_var(ax, image.evpa(evpa_conv, mask_zero=True), image, cmap='hsv', vmin=-90., vmax=90., clean=clean, **kwargs)
     if not clean:
         ax.set_title("EVPA [deg]")
+    return mesh
 
-def plot_evpa_ticks(ax, image, n_evpa=20, scaled=False, emission_cutoff=0.0, fov_units="muas", 
+def plot_evpa_ticks(ax, image, n_evpa=20, scale="emission", emission_cutoff=0.0, fov_units="muas", 
                     custom_wid=1.0, prominent=False, compress_scale=False, **kwargs):
     """Superimpose EVPA as a quiver plot, either scaled by the polarization fraction or not.
     """
     im_evpa = image.downsampled(image.nx // n_evpa)
     evpa = np.pi*im_evpa.evpa(evpa_conv="NofW")/180.
-    if scaled:
-        # Scaled to polarization fraction
+    if scale == "emission":
+        # Scaled to polarized emission (NOT polarized emission *fraction*)
         amp = np.sqrt(im_evpa.Q ** 2 + im_evpa.U ** 2)
         if compress_scale:
             scal = np.max(amp)/compress_scale # TODO consistent scaling option for animations
             amp[amp > scal] = scal
         else:
             scal = np.max(amp)
+        vx = amp * np.cos(evpa) / scal
+        vy = amp * np.sin(evpa) / scal
+    elif scale == "fraction":
+        # Scaled to polarized emission fraction
+        amp = np.nan_to_num(np.sqrt(im_evpa.Q ** 2 + im_evpa.U ** 2) / im_evpa.I)
+        if compress_scale:
+            scal = np.max(amp)/compress_scale
+            amp[amp > scal] = scal
+        else:
+            scal = np.max(amp)
+        print("Scaling {}".format(scal))
         vx = amp * np.cos(evpa) / scal
         vy = amp * np.sin(evpa) / scal
     else:
@@ -203,24 +277,24 @@ def plot_evpa_ticks(ax, image, n_evpa=20, scaled=False, emission_cutoff=0.0, fov
 
     xlim = ax.get_xlim()
     xdim = xlim[1] - xlim[0]
-    if scaled:
+    if scale != "none":
         ax.quiver(X[slc], Y[slc], vx[slc], vy[slc], headwidth=1, headlength=.01,
-                    width=.01*xdim, units='x', color='k', pivot='mid', scale=0.7*n_evpa/xdim, **kwargs)
+                    width=custom_wid*.01*xdim, units='x', color='k', pivot='mid', scale=0.7*n_evpa/xdim, **kwargs)
         ax.quiver(X[slc], Y[slc], vx[slc], vy[slc], headwidth=1, headlength=.01,
-                        width=.005*xdim, units='x', color='w', pivot='mid', scale=0.8*n_evpa/xdim, **kwargs)
+                    width=custom_wid*.005*xdim, units='x', color='w', pivot='mid', scale=0.8*n_evpa/xdim, **kwargs)
     if prominent:
         # Big white ticks
         ax.quiver(X[slc], Y[slc], vx[slc], vy[slc],
                         headwidth=1, headlength=0,
-                        width=.01*xdim, units='x', color='w', pivot='mid', scale=0.8*n_evpa/xdim, **kwargs)
+                        width=custom_wid*.01*xdim, units='x', color='w', pivot='mid', scale=0.8*n_evpa/xdim, **kwargs)
     else:
         # Black ticks surrounding white
         ax.quiver(X[slc], Y[slc], vx[slc], vy[slc],
                     headwidth=1, headlength=0,
                     width=custom_wid*0.022*xdim, units='x', color='k', pivot='mid', scale=0.7*n_evpa/xdim, **kwargs)
         ax.quiver(X[slc], Y[slc], vx[slc], vy[slc],
-                        headwidth=1, headlength=0,
-                        width=custom_wid*0.01*xdim, units='x', color='w', pivot='mid', scale=0.8*n_evpa/xdim, **kwargs)
+                    headwidth=1, headlength=0,
+                    width=custom_wid*0.01*xdim, units='x', color='w', pivot='mid', scale=0.8*n_evpa/xdim, **kwargs)
 
 def subplots_adjust_square(fig, nx, ny, bottom=0.05, top=0.95, left=0.05, right=0.95, global_cbar=False, col_cbars=False):
     """Adjust the height of a grid with aspect='equal' so that there is no space between rows or columns.
@@ -261,11 +335,11 @@ def subplots_adjust_square(fig, nx, ny, bottom=0.05, top=0.95, left=0.05, right=
     return cax_loc
 
 # Local support functions
-def _colorbar(mappable):
+def _colorbar(mappable, size="5%", pad=0.05):
     """ the way matplotlib colorbar should have been implemented """
     from mpl_toolkits.axes_grid1 import make_axes_locatable
     ax = mappable.axes
     fig = ax.figure
     divider = make_axes_locatable(ax)
-    cax = divider.append_axes("right", size="5%", pad=0.05)
+    cax = divider.append_axes("right", size=size, pad=pad)
     return fig.colorbar(mappable, cax=cax)
