@@ -1,3 +1,37 @@
+"""
+ File: stats.py
+ 
+ BSD 3-Clause License
+ 
+ Copyright (c) 2020, AFD Group at UIUC
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+ 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+ 
+ 3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
+
 # stats.py
 
 import numpy as np
@@ -94,11 +128,24 @@ def nccs(image1, image2):
                     ncc(image1.V, image2.V)])
 
 def rel_integrated(var1, var2):
+    """Relative error of summed value in a variable"""
     return np.sum(var2) / np.sum(var1) - 1
 
 def rels_integrated(image1, image2):
-    """NCC for each variable"""
+    """Integrated relative errors for each variable"""
     return np.array([rel_integrated(image1.I, image2.I),
                     rel_integrated(image1.Q, image2.Q),
                     rel_integrated(image1.U, image2.U),
                     rel_integrated(image1.V, image2.V)])
+
+def polar_rels_integrated(image1, image2):
+    return np.array([rel_integrated(image1.I, image2.I),
+                    image2.lpfrac_int() / image1.lpfrac_int() - 1,
+                    image2.evpa_int() - image1.evpa_int(),
+                    image2.cpfrac_int() / image1.cpfrac_int() - 1])
+
+def polar_abs_integrated(image1, image2):
+    return np.array([image2.flux() - image1.flux(),
+                    image2.lpfrac_int() - image1.lpfrac_int(),
+                    image2.evpa_int() - image1.evpa_int(),
+                    image2.cpfrac_int() - image1.cpfrac_int()])

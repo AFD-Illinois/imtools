@@ -4,13 +4,16 @@
 
 import h5py
 import numpy as np
+
+from ehtim_compat import to_eht_im
 import ehtim as eh
 
 from imtools.image import Image
 
 
-def pmodes(im, ms, r_min=0, r_max=25, norm_in_int=False, norm_with_StokesI=True):
+def pmodes(image, ms=(2,), r_min=0, r_max=25, norm_in_int=False, norm_with_StokesI=True):
     """Return beta_m coefficients for m in ms within extent r_min/r_max."""
+    im = to_eht_im(image)
 
     if type(im) == eh.image.Image:
         npix = im.xdim
@@ -32,21 +35,6 @@ def pmodes(im, ms, r_min=0, r_max=25, norm_in_int=False, norm_with_StokesI=True)
         qarr = im.Q
         uarr = im.U
         varr = im.V
-
-    else:
-        hfp = h5py.File(im, 'r')
-        DX = hfp['header']['camera']['dx'][()]
-        dsource = hfp['header']['dsource'][()]
-        lunit = hfp['header']['units']['L_unit'][()]
-        scale = hfp['header']['scale'][()]
-        pol = np.flip(np.copy(hfp['pol']).transpose((1, 0, 2)), axis=0) * scale
-        hfp.close()
-        fov_muas = DX / dsource * lunit * 2.06265e11
-        npix = pol.shape[0]
-        iarr = pol[:, :, 0]
-        qarr = pol[:, :, 1]
-        uarr = pol[:, :, 2]
-        varr = pol[:, :, 3]
 
     parr = qarr + 1j*uarr
     normparr = np.abs(parr)
@@ -77,8 +65,8 @@ def pmodes(im, ms, r_min=0, r_max=25, norm_in_int=False, norm_with_StokesI=True)
     # get number of pixels in annulus with flux >= some % of the peak flux
     ann_iarr = iarr[(MUDISTS <= r_max) & (MUDISTS >= r_min)]
     peak = np.max(ann_iarr)
-    num_above5 = ann_iarr[ann_iarr > .05 * peak].size
-    num_above10 = ann_iarr[ann_iarr > .1 * peak].size
+    #num_above5 = ann_iarr[ann_iarr > .05 * peak].size
+    #num_above10 = ann_iarr[ann_iarr > .1 * peak].size
 
     # compute betas
     betas = []
@@ -102,4 +90,8 @@ def pmodes(im, ms, r_min=0, r_max=25, norm_in_int=False, norm_with_StokesI=True)
                 coeff /= pf
         betas.append(coeff)
 
-    return [betas, tf, pf, npix, num_above5, num_above10]
+    # Find some way to keep tf, pf, npix, num_above5, num_above10
+    if len(betas) == 1:
+        return betas[0]
+    else:
+        return betas
