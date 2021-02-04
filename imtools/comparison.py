@@ -74,14 +74,18 @@ def table_color_plot(table, names, cmap='RdBu_r', n_stokes=4, figsize=(14,4),
     """
     names = list(names)
     nnames = len(names)
-    fig, ax = plt.subplots(1, n_stokes, figsize=figsize)
+    if n_stokes == 4:
+        fig, ax = plt.subplots(2, 2, figsize=figsize)
+        ax = ax.flatten()
+    else:
+        fig, ax = plt.subplots(1, n_stokes, figsize=figsize)
 
     for i,label in enumerate(labels[:n_stokes]):
         not_percent = not is_percent[i]
         if vmax is None:
             lvmax = np.max(np.abs(table[:,:,i] * (100,1)[not_percent] ))
         else:
-            lvmax = vmax
+            lvmax = vmax[i]
 
         if cmap == 'RdBu_r' or cmap == 'bwr':
             lvmin = -lvmax
@@ -325,6 +329,8 @@ def _annotate_heatmap(im, data=None, valfmt="{x:.2f}",
     if isinstance(valfmt, str):
         valfmt = matplotlib.ticker.StrMethodFormatter(valfmt)
 
+    plt.rc('font', size=plt.rcParams['font.size']-2)
+
     # Loop over the data and create a `Text` for each "pixel".
     # Change the text's color depending on the data.
     texts = []
@@ -333,5 +339,7 @@ def _annotate_heatmap(im, data=None, valfmt="{x:.2f}",
             kw.update(color=textcolors[int(abs(data[i, j]) > threshold)])
             text = im.axes.text(j, i, valfmt(data[i, j], None), **kw)
             texts.append(text)
+    
+    plt.rc('font', size=plt.rcParams['font.size']+2)
 
     return texts
