@@ -12,7 +12,9 @@ of if you won't want to modify the library itself, you can install it more perma
 $ pip install .
 ```
 
+If [eht-imaging](https://github.com/achael/eht-imaging) is installed, there is limited support for converting imtools `Image` objects for use in eht-imaging and vice versa.
+
 # Use
 Check the `scripts` directory for basic usage of the `Image` object, likely the primary useful part of this library.  Example notebooks, including use of the  `ImageSet` library object, will be added later.
 
-The comparison utilities exist mostly to support [this](https://github.com/afd-illinois/polarized-grrt-comparison) (private until publication).
+The comparison utilities exist mostly to support [this](https://github.com/afd-illinois/polarized-grrt-comparison) (private to EHT members until publication).
