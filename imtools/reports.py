@@ -39,7 +39,7 @@ from imtools.library import ImageSet
 from imtools.io import read_image
 from imtools.plots import *
 import imtools.stats as stats
-from imtools.grey_plot import plot_I_greyscale
+#from imtools.grey_plot import plot_I_greyscale
 
 """
 Reports take an image(s) or image set(s) and return a figure object for any further
