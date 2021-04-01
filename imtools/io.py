@@ -183,11 +183,12 @@ def read_image(fname, name=None, load_fluid_header=False, parameters={}, format_
         # Numpy files from Jason are corrected and image-only, so:
         pol_data = infile
     elif ftype == "odyssey_dat_8":
-        # Odyssey 8-column format: alpha, beta, I, Q, U, V, unpol, tau
+        # Odyssey 8-column: i, j, alpha, beta, I, Q, U, V
+        # Odyssey 8-column format was: alpha, beta, I, Q, U, V, unpol, tau
         imres = int(np.sqrt(infile.shape[1]))
-        pol_data = infile[2:6].reshape(4,imres,imres).transpose(1,2,0)
-        unpol_data = infile[6].reshape(imres,imres)
-        tau = infile[7].reshape(imres,imres)
+        pol_data = infile[4:8].reshape(4,imres,imres).transpose(2,1,0)
+        #unpol_data = infile[6].reshape(imres,imres)
+        #tau = infile[7].reshape(imres,imres)
         header = parse_name(fname)
     elif ftype == "ipole_dat_8":
         # ipole 8-column: i, j, unpol, I, Q, U, V, tauF
