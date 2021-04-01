@@ -33,8 +33,14 @@
 """
 
 import numpy as np
-import ehtim
-import ehtim.const_def as ehc
+
+have_ehtim = False
+try:
+    import ehtim
+    import ehtim.const_def as ehc
+except ModuleNotFoundError:
+    print("Couldn't import ehtim.  Compatibility & some plots disabled.")
+    have_ehtim = True
 
 def from_eht_im(im):
     # TODO fill properties struct...
