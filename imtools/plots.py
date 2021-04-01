@@ -59,9 +59,11 @@ def plot_var(ax, var, image, fov_units="muas", xlabel=True, ylabel=True, add_cba
             max_abs = min(max_abs, 1e3) # Clip to stay remotely reasonable
         else:
             max_abs = kwargs['vmax']
-        mesh = ax.pcolormesh(X, Y, var, vmax=max_abs, vmin=-max_abs, **kwargs)
+        #mesh = ax.pcolormesh(X, Y, var, vmax=max_abs, vmin=-max_abs, **kwargs)
+        mesh = ax.imshow(var, vmax=max_abs, vmin=-max_abs, origin='lower', interpolation='nearest', extent=extent_og, **kwargs)
     else:
-        mesh = ax.pcolormesh(X, Y, var, **kwargs)
+        #mesh = ax.pcolormesh(X, Y, var, **kwargs)
+        mesh = ax.imshow(var, origin='lower', interpolation='nearest', extent=extent_og, **kwargs)
 
     # Colorbar
     if add_cbar and not clean:
@@ -238,7 +240,7 @@ def plot_evpa_ticks(ax, image, n_evpa=20, scale="emission", emission_cutoff=0.0,
     """
     im_evpa = image.downsampled(image.nx // n_evpa)
     evpa = np.pi*im_evpa.evpa(evpa_conv="NofW")/180.
-    if scale == "emission":
+    if scale == "emission" or scale == True:
         # Scaled to polarized emission (NOT polarized emission *fraction*)
         amp = np.sqrt(im_evpa.Q ** 2 + im_evpa.U ** 2)
         if compress_scale:

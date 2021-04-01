@@ -149,21 +149,22 @@ def plot_stokes_square(image, figsize=(8,10), **kwargs):
     return fig
 
 
-def plot_stokes_rows(images, figsize=(12,12), units="Jy", n_stokes=4, consistent_scale=True, key_image=0, **kwargs):
+def plot_stokes_rows(images, figsize=(12,12), units="Jy", n_stokes=4, vmax=None, consistent_scale=True, key_image=0, **kwargs):
     """Plot a series of horizontal 4-pane Stokes images, for comparing each parameter down columns
     Places both colorbars on the right side
     """
     fig, ax = plt.subplots(len(images), n_stokes, figsize=figsize)
 
-    if consistent_scale:
-        # Set consistent vmax.  Doesn't matter which image we key from
-        key_im = images[key_image]
-        vmax = [np.max(np.abs(key_im.I * key_im.scale_flux(units))),
-                np.max(np.abs(key_im.Q * key_im.scale_flux(units))),
-                np.max(np.abs(key_im.U * key_im.scale_flux(units))),
-                np.max(np.abs(key_im.V * key_im.scale_flux(units)))]
-    else:
-        vmax = None
+    if vmax is None:
+        if consistent_scale:
+            # Set consistent vmax.  Doesn't matter which image we key from
+            key_im = images[key_image]
+            vmax = [np.max(np.abs(key_im.I * key_im.scale_flux(units))),
+                    np.max(np.abs(key_im.Q * key_im.scale_flux(units))),
+                    np.max(np.abs(key_im.U * key_im.scale_flux(units))),
+                    np.max(np.abs(key_im.V * key_im.scale_flux(units)))]
+        else:
+            vmax = None
 
     if 'polar' in kwargs and kwargs['polar']:
         titles = ["Stokes I", "LP Emission", "EVPA", "Stokes V"]
@@ -202,7 +203,7 @@ def get_snapshots_at(nimg, spins=None, mad_spins=ImageSet.canon_spins, sane_spin
 
 def collage(library, nimg, greyscale="none", evpa_rainbows=False, rotated=False, show_spin=False, mad_spins=ImageSet.canon_spins,
                     sane_spins=ImageSet.canon_spins, rhighs=ImageSet.canon_rhighs, figsize=(16,9), zoom=2, blur=0, vmax=None, average=False,
-                    title="", evpa=True, n_evpa=20, duplicate=False, scaled=False, compress_scale=False, verbose=False):
+                    title="", evpa=True, n_evpa=20, evpa_scale="none", compress_scale=False, duplicate=False, verbose=False):
     """Generate a figure with a collage of all models at a particular snapshot, or averaged
     @param library:
     """
@@ -258,7 +259,7 @@ def collage(library, nimg, greyscale="none", evpa_rainbows=False, rotated=False,
                 else:
                     plot_I(ax, image, zoom=zoom, clean=True, vmax=vmax)
                     if evpa:
-                        plot_evpa_ticks(ax, image, emission_cutoff=(1.0 + (not did_blur)*1.6), n_evpa=my_n_evpa, scaled=scaled, compress_scale=compress_scale)
+                        plot_evpa_ticks(ax, image, emission_cutoff=(1.0 + (not did_blur)*1.6), n_evpa=my_n_evpa, scale=evpa_scale, compress_scale=compress_scale)
                 
                 
                 if show_spin and float(spin) != 0.0:
@@ -266,7 +267,7 @@ def collage(library, nimg, greyscale="none", evpa_rainbows=False, rotated=False,
 
                 # Label the border plots
                 if nrhigh == 0:
-                    ax.set_title(flux + ", a = " + spin, fontsize=10)
+                    ax.set_title(flux + r", a_* = " + spin, fontsize=10)
                 if nflux == 0 and nspin == 0:
                     ax.set_ylabel(r"$R_{\mathrm{high}} = $" + rhigh)
 
