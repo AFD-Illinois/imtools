@@ -39,7 +39,7 @@ from imtools.library import ImageSet
 from imtools.io import read_image
 from imtools.plots import *
 import imtools.stats as stats
-from imtools.grey_plot import plot_I_greyscale
+#from imtools.grey_plot import plot_I_greyscale
 
 """
 Reports take an image(s) or image set(s) and return a figure object for any further
@@ -203,7 +203,7 @@ def get_snapshots_at(nimg, spins=None, mad_spins=ImageSet.canon_spins, sane_spin
 
 def collage(library, nimg, greyscale="none", evpa_rainbows=False, rotated=False, show_spin=False, mad_spins=ImageSet.canon_spins,
                     sane_spins=ImageSet.canon_spins, rhighs=ImageSet.canon_rhighs, figsize=(16,9), zoom=2, blur=0, vmax=None, average=False,
-                    title="", evpa=True, n_evpa=20, duplicate=False, scaled=False, compress_scale=False, verbose=False):
+                    title="", evpa=True, n_evpa=20, evpa_scale="none", compress_scale=False, duplicate=False, verbose=False):
     """Generate a figure with a collage of all models at a particular snapshot, or averaged
     @param library:
     """
@@ -259,7 +259,7 @@ def collage(library, nimg, greyscale="none", evpa_rainbows=False, rotated=False,
                 else:
                     plot_I(ax, image, zoom=zoom, clean=True, vmax=vmax)
                     if evpa:
-                        plot_evpa_ticks(ax, image, emission_cutoff=(1.0 + (not did_blur)*1.6), n_evpa=my_n_evpa, scaled=scaled, compress_scale=compress_scale)
+                        plot_evpa_ticks(ax, image, emission_cutoff=(1.0 + (not did_blur)*1.6), n_evpa=my_n_evpa, scale=evpa_scale, compress_scale=compress_scale)
                 
                 
                 if show_spin and float(spin) != 0.0:
@@ -267,7 +267,7 @@ def collage(library, nimg, greyscale="none", evpa_rainbows=False, rotated=False,
 
                 # Label the border plots
                 if nrhigh == 0:
-                    ax.set_title(flux + ", a = " + spin, fontsize=10)
+                    ax.set_title(flux + r", a_* = " + spin, fontsize=10)
                 if nflux == 0 and nspin == 0:
                     ax.set_ylabel(r"$R_{\mathrm{high}} = $" + rhigh)
 
