@@ -12,11 +12,9 @@ of if you won't want to modify the library itself, you can install it more perma
 $ pip install .
 ```
 
-# Use
-Say you have some images.  An entire library of images of different black hole accretion flow models, taken at different times.
-Maybe you want to explore overall properties of these images, or compare them.
-Have I got some Python for you.
+If [eht-imaging](https://github.com/achael/eht-imaging) is installed, there is limited support for converting imtools `Image` objects for use in eht-imaging and vice versa.
 
-See the `notebooks` folder for some example Jupyter notebooks using imtools for various operations.  Note that library-based
-examples require the images in question, and take a long time to run the first time, as the images are read once and sorted
-into a cache mapping models -> image file paths.  They use the paths from BH by default, modify if running locally.
+# Use
+Check the `scripts` directory for basic usage of the `Image` object, likely the primary useful part of this library.  Example notebooks, including use of the  `ImageSet` library object, will be added later.
+
+The comparison utilities exist mostly to support [this](https://github.com/afd-illinois/polarized-grrt-comparison) (private to EHT members until publication).

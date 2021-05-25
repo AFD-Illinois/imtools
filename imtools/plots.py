@@ -43,25 +43,33 @@ functions which return a whole figure see reports.py
 """
 
 def plot_var(ax, var, image, fov_units="muas", xlabel=True, ylabel=True, add_cbar=True,
-             clabel=None, zoom=1, clean=False, symmetric=False, **kwargs):
+             clabel=None, zoom=1, clean=False, symmetric=False, log=False, **kwargs):
     """General function for plotting a set of pixels, given some options about how to do it
     """
     extent_og = image.extent(fov_units)
 
-    X, Y = np.meshgrid(np.linspace(extent_og[0], extent_og[1], image.nx+1),
-                        np.linspace(extent_og[2], extent_og[3], image.ny+1))
-    
+    #X, Y = np.meshgrid(np.linspace(extent_og[0], extent_og[1], image.nx+1),
+    #                    np.linspace(extent_og[2], extent_og[3], image.ny+1))
+
+    # Preserve original data
+    if log:
+        p_var = log(var)
+    else:
+        p_var = var
+
     # Symmetric colorbar option
     if symmetric:
         # Take vmax if speccd, otherwise use a symmetric scale around the largest abs()
         if 'vmax' not in kwargs or kwargs['vmax'] is None:
-            max_abs = max(np.abs(np.max(var)), np.abs(np.min(var)))
+            max_abs = max(np.abs(np.max(p_var)), np.abs(np.min(p_var)))
             max_abs = min(max_abs, 1e3) # Clip to stay remotely reasonable
         else:
             max_abs = kwargs['vmax']
-        mesh = ax.pcolormesh(X, Y, var, vmax=max_abs, vmin=-max_abs, **kwargs)
+        #mesh = ax.pcolormesh(X, Y, p_var, vmax=max_abs, vmin=-max_abs, **kwargs)
+        mesh = ax.imshow(p_var, vmax=max_abs, vmin=-max_abs, origin='lower', interpolation='nearest', extent=extent_og, **kwargs)
     else:
-        mesh = ax.pcolormesh(X, Y, var, **kwargs)
+        #mesh = ax.pcolormesh(X, Y, p_var, **kwargs)
+        mesh = ax.imshow(p_var, origin='lower', interpolation='nearest', extent=extent_og, **kwargs)
 
     # Colorbar
     if add_cbar and not clean:
@@ -152,7 +160,7 @@ def plot_lp(ax, image, cmap='afmhot', clean=False, **kwargs):
         ax.set_title("LP Emission")
     return mesh
 
-def plot_all_stokes(axes, image, relative=False, vmax=None, units="Jy", n_stokes=4, layout="none", polar=False, **kwargs):
+def plot_all_stokes(axes, image, relative=False, vmax=None, units="Jy", n_stokes=4, layout="none", polar=False, all_magnitudes=False, all_angles=False, **kwargs):
     """Plot all raw Stokes parameters on a set of 4 axes.
     If vmax is given as a list, use the respective elements as vmax for I,Q,U,V
     """
@@ -184,13 +192,13 @@ def plot_all_stokes(axes, image, relative=False, vmax=None, units="Jy", n_stokes
             clabel = "Jy/px"
         else:
             clabel = None
-        if not relative and i == 0:
+        if all_magnitudes or (i == 0 and not relative and not all_angles):
             meshes.append( plot_I(ax[i], image, clabel=clabel, vmax=vmax[i],
                                   xlabel=xlabel_flags[i], ylabel=ylabel_flags[i], **kwargs) )
         elif polar and not relative and i == 1:
             meshes.append( plot_lp(ax[i], image, clabel=clabel,
                                    xlabel=xlabel_flags[i], ylabel=ylabel_flags[i], **kwargs) )
-        elif polar and not relative and i == 2:
+        elif all_angles or (polar and not relative and i == 2):
             meshes.append( plot_evpa_rainbow(ax[i], image, clabel=clabel,
                                              xlabel=xlabel_flags[i], ylabel=ylabel_flags[i], **kwargs) )
         else:
@@ -238,7 +246,7 @@ def plot_evpa_ticks(ax, image, n_evpa=20, scale="emission", emission_cutoff=0.0,
     """
     im_evpa = image.downsampled(image.nx // n_evpa)
     evpa = np.pi*im_evpa.evpa(evpa_conv="NofW")/180.
-    if scale == "emission":
+    if scale == "emission" or scale == True:
         # Scaled to polarized emission (NOT polarized emission *fraction*)
         amp = np.sqrt(im_evpa.Q ** 2 + im_evpa.U ** 2)
         if compress_scale:

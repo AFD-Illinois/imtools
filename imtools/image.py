@@ -35,6 +35,7 @@
 # image.py
 
 import numpy as np
+import numpy.fft as fft
 import h5py
 import matplotlib.pyplot as plt
 import copy
@@ -46,6 +47,38 @@ import imtools.stats as stats
 # TODO list:
 # Standard way of representing a GRMHD model, camera, and e- parameters, instead of a dict
 # All as one "model" or separate?
+
+def _power_of_two(target):
+    """Finds the next greatest power of two
+    """
+    cur = 1
+    if target > 1:
+        for i in range(0, int(target)):
+            if (cur >= target):
+                return cur
+            else:
+                cur *= 2
+    else:
+        return 1
+
+def _visibilities_from_image(imarr, fft_pad_factor):
+    xdim = imarr.shape[0]
+    ydim = imarr.shape[1]
+    # Padded image size
+    npad = fft_pad_factor * np.max((xdim, ydim))
+    npad = _power_of_two(npad)
+
+    padvalx1 = padvalx2 = int(np.floor((npad - xdim)/2.0))
+    if xdim % 2:
+        padvalx2 += 1
+    padvaly1 = padvaly2 = int(np.floor((npad - ydim)/2.0))
+    if ydim % 2:
+        padvaly2 += 1
+
+    imarr = imarr.T
+    imarr = np.pad(imarr, ((padvalx1, padvalx2), (padvaly1, padvaly2)),
+                       'constant', constant_values=0.0)
+    return np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(imarr)))
 
 class Image(object):
     """Images are intended for polarized theory "truth" data in the image plane only,
@@ -312,6 +345,7 @@ class Image(object):
         self.U *= (-1)**(rot % 2)
 
     # Nonvolatile Operations
+    # TODO generalize applying a single-argument op, like the infixes below
     def rel_diff(self, other, clip=None):
         """Return the image representing pixel-wise relative difference between this image and another.
         That is, (im2-im1)/im1 for each pixel.  Optionally clipped 
@@ -391,6 +425,64 @@ class Image(object):
         props['camera']['nx'] = I.shape[0]
         props['camera']['ny'] = I.shape[1]
         return Image(props, I, Q, U, V, tau=tau, tauF=tauF, unpol=unpol, init_type="multi_arrays_stokes")
+    
+    def visibilities(self, pad_x=10):
+        """Get the complex visibilities corresponding to the image
+        @param Number of times by which to pad FFT to preserve resolution in desired area.
+               Image will be padded with zeros to a total of N1*pad_x by N2*pad_x pixels.
+        @return "Image" with complex visibilities of each Stokes parameter
+        """
+        new_vars = {}
+        for m in Image.data_members:
+            if self.__dict__[m] is not None:
+                new_vars[m] = _visibilities_from_image(self.__dict__[m], pad_x)
+            else:
+                new_vars[m] = None
+        return Image(self.properties, new_vars['I'], new_vars['Q'], new_vars['U'], new_vars['V'],
+                    tau=new_vars['tau'], tauF=new_vars['tauF'], unpol=new_vars['unpol'],
+                    init_type="multi_arrays_stokes")
+
+    def visibility_amplitudes(self, pad_x=10, crop_x=10):
+        """Get the complex visibilities corresponding to the image
+        @param pad_x Number of times by which to pad FFT to preserve resolution in desired area.
+               Image will be padded with zeros to a total of N1*pad_x by N2*pad_x pixels.
+        @param re_crop Crop image back to N1xN2 pixels in the center of the FFT'd version
+        @return "Image" with complex visibilities of each Stokes parameter
+        """
+        new_vars = {}
+        for m in Image.data_members:
+            if self.__dict__[m] is not None:
+                new_vars[m] = np.abs(_visibilities_from_image(self.__dict__[m], pad_x))
+                if crop_x < pad_x:
+                    center = [s*pad_x//2 for s in self.__dict__[m].shape]
+                    window = [s*crop_x//2 for s in self.__dict__[m].shape]
+                    new_vars[m] = new_vars[m][center[0]-window[0]:center[0]+window[0],center[1]-window[1]:center[1]+window[1]]
+            else:
+                new_vars[m] = None
+        return Image(self.properties, new_vars['I'], new_vars['Q'], new_vars['U'], new_vars['V'],
+                    tau=new_vars['tau'], tauF=new_vars['tauF'], unpol=new_vars['unpol'],
+                    init_type="multi_arrays_stokes")
+
+    def visibility_phases(self, pad_x=4, crop_x=10):
+        """Get the complex visibilities corresponding to the image
+        @param pad_x Number of times by which to pad FFT to preserve resolution in desired area.
+               Image will be padded with zeros to a total of N1*pad_x by N2*pad_x pixels.
+        @param re_crop Crop image back to N1xN2 pixels in the center of the FFT'd version
+        @return "Image" with complex visibilities of each Stokes parameter
+        """
+        new_vars = {}
+        for m in Image.data_members:
+            if self.__dict__[m] is not None:
+                new_vars[m] = np.angle(_visibilities_from_image(self.__dict__[m], pad_x))
+                if crop_x < pad_x:
+                    center = [s*pad_x//2 for s in self.__dict__[m].shape]
+                    window = [s*crop_x//2 for s in self.__dict__[m].shape]
+                    new_vars[m] = new_vars[m][center[0]-window[0]:center[0]+window[0],center[1]-window[1]:center[1]+window[1]]
+            else:
+                new_vars[m] = None
+        return Image(self.properties, new_vars['I'], new_vars['Q'], new_vars['U'], new_vars['V'],
+                    tau=new_vars['tau'], tauF=new_vars['tauF'], unpol=new_vars['unpol'],
+                    init_type="multi_arrays_stokes")
 
     # Operators
     def _do_op(self, other, op):
