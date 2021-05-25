@@ -149,21 +149,22 @@ def plot_stokes_square(image, figsize=(8,10), **kwargs):
     return fig
 
 
-def plot_stokes_rows(images, figsize=(12,12), units="Jy", n_stokes=4, consistent_scale=True, key_image=0, **kwargs):
+def plot_stokes_rows(images, figsize=(12,12), units="Jy", n_stokes=4, vmax=None, consistent_scale=True, key_image=0, **kwargs):
     """Plot a series of horizontal 4-pane Stokes images, for comparing each parameter down columns
     Places both colorbars on the right side
     """
     fig, ax = plt.subplots(len(images), n_stokes, figsize=figsize)
 
-    if consistent_scale:
-        # Set consistent vmax.  Doesn't matter which image we key from
-        key_im = images[key_image]
-        vmax = [np.max(np.abs(key_im.I * key_im.scale_flux(units))),
-                np.max(np.abs(key_im.Q * key_im.scale_flux(units))),
-                np.max(np.abs(key_im.U * key_im.scale_flux(units))),
-                np.max(np.abs(key_im.V * key_im.scale_flux(units)))]
-    else:
-        vmax = None
+    if vmax is None:
+        if consistent_scale:
+            # Set consistent vmax.  Doesn't matter which image we key from
+            key_im = images[key_image]
+            vmax = [np.max(np.abs(key_im.I * key_im.scale_flux(units))),
+                    np.max(np.abs(key_im.Q * key_im.scale_flux(units))),
+                    np.max(np.abs(key_im.U * key_im.scale_flux(units))),
+                    np.max(np.abs(key_im.V * key_im.scale_flux(units)))]
+        else:
+            vmax = None
 
     if 'polar' in kwargs and kwargs['polar']:
         titles = ["Stokes I", "LP Emission", "EVPA", "Stokes V"]
