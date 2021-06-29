@@ -36,13 +36,13 @@
 
 import numpy as np
 import numpy.fft as fft
-import h5py
 import matplotlib.pyplot as plt
 import copy
 
 from scipy.ndimage import gaussian_filter
 
 import imtools.stats as stats
+from imtools.units import cgs
 
 # TODO list:
 # Standard way of representing a GRMHD model, camera, and e- parameters, instead of a dict
@@ -134,7 +134,10 @@ class Image(object):
         self.tau = tau
         self.tauF = tauF
         self.unpol = unpol
-        
+        self.parse_properties(properties)
+
+
+    def parse_properties(self, properties):
         self.properties = copy.deepcopy(properties)
 
         # Load camera parameters if we can
@@ -149,6 +152,7 @@ class Image(object):
 
             self.dsource = properties['dsource']
             self.lunit = properties['units']['L_unit']
+            self.MBH = self.lunit*cgs['CL']**2/cgs['GNEWT']/cgs['MSOLAR']
 
             # Magic number is muas per radian
             # TODO multiplication order?
@@ -250,7 +254,10 @@ class Image(object):
         return self.Itot()
     def flux_unpol(self):
         """Total flux in Jy of unpolarized image"""
-        return np.sum(self.unpol) * self.scale
+        if self.unpol is not None:
+            return np.sum(self.unpol) * self.scale
+        else:
+            return 0
 
     def get_raw(self):
         """Array [s,i,j] of all Stokes parameters"""
@@ -454,7 +461,7 @@ class Image(object):
             if self.__dict__[m] is not None:
                 new_vars[m] = np.abs(_visibilities_from_image(self.__dict__[m], pad_x))
                 if crop_x < pad_x:
-                    center = [s*pad_x//2 for s in self.__dict__[m].shape]
+                    center = [s//2 for s in new_vars[m].shape]
                     window = [s*crop_x//2 for s in self.__dict__[m].shape]
                     new_vars[m] = new_vars[m][center[0]-window[0]:center[0]+window[0],center[1]-window[1]:center[1]+window[1]]
             else:
@@ -475,7 +482,7 @@ class Image(object):
             if self.__dict__[m] is not None:
                 new_vars[m] = np.angle(_visibilities_from_image(self.__dict__[m], pad_x))
                 if crop_x < pad_x:
-                    center = [s*pad_x//2 for s in self.__dict__[m].shape]
+                    center = [s//2 for s in new_vars[m].shape]
                     window = [s*crop_x//2 for s in self.__dict__[m].shape]
                     new_vars[m] = new_vars[m][center[0]-window[0]:center[0]+window[0],center[1]-window[1]:center[1]+window[1]]
             else:

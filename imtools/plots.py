@@ -53,7 +53,7 @@ def plot_var(ax, var, image, fov_units="muas", xlabel=True, ylabel=True, add_cba
 
     # Preserve original data
     if log:
-        p_var = log(var)
+        p_var = np.log(var)
     else:
         p_var = var
 
@@ -111,6 +111,20 @@ def plot_var(ax, var, image, fov_units="muas", xlabel=True, ylabel=True, add_cba
     window = [extent_og[0]/zoom, extent_og[1]/zoom, extent_og[2]/zoom, extent_og[3]/zoom]
     ax.axis(window)
     #print("Window:", window)
+
+    return mesh
+
+def plot_unpolarized(ax, image, units="Jy", cmap='afmhot', add_title=True, clean=False, tag="", **kwargs):
+    """Plot the image result of unpolarized transport.
+    Separate implementation for afmhot colors and black background.
+    """
+    mesh = plot_var(ax, image.unpol * image.scale_flux(units), image, clean=clean, cmap=cmap, **kwargs)
+
+    if add_title and not clean:
+        if tag is not None:
+            ax.set_title("{}".format(tag))
+        else:
+            ax.set_title("{} unpolarized".format(image.name))
 
     return mesh
 
@@ -207,16 +221,16 @@ def plot_all_stokes(axes, image, relative=False, vmax=None, units="Jy", n_stokes
 
     return meshes
 
-def plot_lpfrac(ax, image, clean=False, **kwargs):
+def plot_lpfrac(ax, image, cmap='jet', clean=False, **kwargs):
     """Plot the percentage of emission which is linearly polarized.
     """
     ax.set_facecolor('black')
-    mesh = plot_var(ax, 100*image.lpfrac(mask_zero=True), image, cmap='jet', vmin=0., vmax=100., clean=clean, **kwargs)
+    mesh = plot_var(ax, 100*image.lpfrac(mask_zero=True), image, cmap=cmap, vmin=0., vmax=100., clean=clean, **kwargs)
     if not clean:
         ax.set_title("LP [%]")
     return mesh
 
-def plot_cpfrac(ax, image, **kwargs):
+def plot_cpfrac(ax, image, cmap='jet', **kwargs):
     """Plot the percentage of emission which is circularly polarized.  Signed.
     (as in ipole's bundled plot_pol.py)
     """
@@ -226,16 +240,16 @@ def plot_cpfrac(ax, image, **kwargs):
     if np.isnan(vext): vext = 10.
 
     ax.set_facecolor('black')
-    mesh = plot_var(ax, 100*image.cpfrac(mask_zero=True), image, cmap='jet', vmin=0., vmax=100., **kwargs)
+    mesh = plot_var(ax, 100*image.cpfrac(mask_zero=True), image, cmap=cmap, vmin=0., vmax=100., **kwargs)
     ax.set_title("CP [%]")
     return mesh
 
-def plot_evpa_rainbow(ax, image, evpa_conv="EofN", clean=False, **kwargs):
+def plot_evpa_rainbow(ax, image, evpa_conv="EofN", cmap='hsv', clean=False, **kwargs):
     """EVPA rainbow plot -- color pixels by angle without regard to polarized emission fraction
     (as in ipole's bundled plot_pol.py)
     """
     ax.set_facecolor('black')
-    mesh = plot_var(ax, image.evpa(evpa_conv, mask_zero=True), image, cmap='hsv', vmin=-90., vmax=90., clean=clean, **kwargs)
+    mesh = plot_var(ax, image.evpa(evpa_conv, mask_zero=True), image, cmap=cmap, vmin=-90., vmax=90., clean=clean, **kwargs)
     if not clean:
         ax.set_title("EVPA [deg]")
     return mesh
