@@ -103,7 +103,7 @@ def plot_pol(image, figsize=(8,8), print_stats=True, scaled=True):
     # Total intensity
     plot_I(ax[0,0], image, xlabel=False)
     # Quiver on intensity
-    plot_evpa_ticks(ax[0,0], image, n_evpa=30, scaled=scaled)
+    plot_evpa_ticks(ax[0,0], image, n_evpa=30)
 
     # Linear polarization fraction
     plot_lpfrac(ax[0,1], image, xlabel=False, ylabel=False)
@@ -130,7 +130,7 @@ def plot_unpol(image, figsize=(8,8), print_stats=True, scaled=True, **kwargs):
     fig, ax = plt.subplots(1, 1, figsize=figsize)
 
     # Total intensity
-    plot_I(ax, image, **kwargs)
+    plot_unpolarized(ax, image, **kwargs)
 
     if print_stats:
         # Print just total flux
@@ -267,7 +267,7 @@ def collage(library, nimg, greyscale="none", evpa_rainbows=False, rotated=False,
 
                 # Label the border plots
                 if nrhigh == 0:
-                    ax.set_title(flux + r", a_* = " + spin, fontsize=10)
+                    ax.set_title(flux + r" $a_*$=" + spin, fontsize=8)
                 if nflux == 0 and nspin == 0:
                     ax.set_ylabel(r"$R_{\mathrm{high}} = $" + rhigh)
 

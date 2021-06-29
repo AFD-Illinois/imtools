@@ -36,7 +36,7 @@
 # This is now an automatic report, since it's useful
 
 from imtools.io import read_image
-from imtools.reports import generate_plot_pol
+from imtools.reports import plot_pol
 
 import sys
 
@@ -50,5 +50,5 @@ if __name__ == "__main__":
     image = read_image(sys.argv[1])
 
     # create plots
-    generate_plot_pol(image, fname.replace(".h5",".png"))
+    plot_pol(image, fname.replace(".h5",".png"))
 
