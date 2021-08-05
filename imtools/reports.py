@@ -84,13 +84,16 @@ def compare_unpol(image1, image2, scale_image=False, same_colorscale=False, prin
 
     return fig
 
-def compare(image1, image2, figsize=(12,6)):
+def compare(image1, image2, relative=True, figsize=(12,6)):
     fig, ax = plt.subplots(2, 4, figsize=figsize)
 
     diff = image2 - image1
     fig.suptitle("Difference in raw Stokes {} vs {}".format(image1.name, image2.name))
     plot_all_stokes(ax[0,:], diff, relative=True)
-    plot_all_stokes(ax[1,:], image1.rel_diff(image2, clip=(-1,1)), relative=True)
+    if relative:
+        plot_all_stokes(ax[1,:], image1.rel_diff(image2, clip=(-1,1)), relative=True)
+    else:
+        plot_all_stokes(ax[1,:], image1.abs_diff(image2, clip=(-1,1)), relative=False)
 
     return fig
 
