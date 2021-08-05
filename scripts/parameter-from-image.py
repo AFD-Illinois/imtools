@@ -1,7 +1,7 @@
-# Make a parameter file (minus the filename) from a finished image
+#!/usr/bin/env python3
 
-# usage:
-# python parameter-from-image.py /path/to/image.h5 > parameters.par
+# Usage: parameter-from-image.py /path/to/image.h5 > parameters.par
+# Make a parameter file (minus the filename) from a finished image
 
 # TODO:
 # Support execution parameters (e.g. "add_ppm")
