@@ -48,9 +48,6 @@ def plot_var(ax, var, image, fov_units="muas", xlabel=True, ylabel=True, add_cba
     """
     extent_og = image.extent(fov_units)
 
-    #X, Y = np.meshgrid(np.linspace(extent_og[0], extent_og[1], image.nx+1),
-    #                    np.linspace(extent_og[2], extent_og[3], image.ny+1))
-
     # Preserve original data
     if log:
         p_var = np.log(var)
@@ -65,11 +62,9 @@ def plot_var(ax, var, image, fov_units="muas", xlabel=True, ylabel=True, add_cba
             max_abs = min(max_abs, 1e3) # Clip to stay remotely reasonable
         else:
             max_abs = kwargs['vmax']
-        #mesh = ax.pcolormesh(X, Y, p_var, vmax=max_abs, vmin=-max_abs, **kwargs)
-        mesh = ax.imshow(p_var, vmax=max_abs, vmin=-max_abs, origin='lower', interpolation='nearest', extent=extent_og, **kwargs)
+        mesh = ax.imshow(p_var, vmax=max_abs, vmin=-max_abs, origin='lower', interpolation='nearest', extent=extent_og, rasterized=True, **kwargs)
     else:
-        #mesh = ax.pcolormesh(X, Y, p_var, **kwargs)
-        mesh = ax.imshow(p_var, origin='lower', interpolation='nearest', extent=extent_og, **kwargs)
+        mesh = ax.imshow(p_var, origin='lower', interpolation='nearest', extent=extent_og, rasterized=True, **kwargs)
 
     # Colorbar
     if add_cbar and not clean:

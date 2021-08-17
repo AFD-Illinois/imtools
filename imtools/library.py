@@ -43,7 +43,7 @@ from imtools.image import Image
 from imtools.io import read_image
 from imtools.parallel import map_parallel, iter_parallel
 
-MAX_N_IMAGES = 4000
+MAX_N_IMAGES = 10000
 N_PROCS = 15
 
 
@@ -69,7 +69,7 @@ class ImageSet(object):
                 self.names = pickle.load(cf)
         else:
             self.names = {}
-            for fname in glob.iglob(os.path.join(basedir, "**", "image_*.h5"), recursive=True):
+            for fname in glob.iglob(os.path.join(basedir, "**", "*.h5"), recursive=True):
                 # Skip even building the expensive Image object.  Just HDF5
                 # TODO we can multithread this. we have the technology -- just need a span of properties beforehand...
                 try:
