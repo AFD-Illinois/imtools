@@ -84,7 +84,7 @@ def compare_unpol(image1, image2, scale_image=False, same_colorscale=False, prin
 
     return fig
 
-def compare(image1, image2, relative=True, figsize=(12,6)):
+def compare(image1, image2, relative=True, figsize=(12,6), print_stats=True):
     fig, ax = plt.subplots(2, 4, figsize=figsize)
 
     diff = image2 - image1
@@ -95,18 +95,27 @@ def compare(image1, image2, relative=True, figsize=(12,6)):
     else:
         plot_all_stokes(ax[1,:], image1.abs_diff(image2, clip=(-1,1)), relative=False)
 
+    if print_stats:
+        print("Ftot {}: {}".format(image1.name, image1.flux()))
+        print("Ftot {}: {}".format(image2.name, image2.flux()))
+        print("{} - {} MSE in I is {}".format(image1.name, image2.name, stats.mse(image1.I*scalefac, image2.I)))
+        print("{} - {} MSE in Q is {}".format(image1.name, image2.name, stats.mse(image1.Q*scalefac, image2.Q)))
+        print("{} - {} MSE in U is {}".format(image1.name, image2.name, stats.mse(image1.U*scalefac, image2.U)))
+        print("{} - {} MSE in V is {}".format(image1.name, image2.name, stats.mse(image1.V*scalefac, image2.V)))
+
     return fig
 
 
 
-def plot_pol(image, figsize=(8,8), print_stats=True, scaled=True):
+def plot_pol(image, figsize=(8,8), print_stats=True, scaled=True, evpa_ticks=True):
     """Mimics the plot_pol.py script in ipole/scripts"""
     fig, ax = plt.subplots(2, 2, figsize=figsize)
 
     # Total intensity
     plot_I(ax[0,0], image, xlabel=False)
     # Quiver on intensity
-    plot_evpa_ticks(ax[0,0], image, n_evpa=30)
+    if evpa_ticks:
+        plot_evpa_ticks(ax[0,0], image, n_evpa=30)
 
     # Linear polarization fraction
     plot_lpfrac(ax[0,1], image, xlabel=False, ylabel=False)
