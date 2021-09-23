@@ -68,7 +68,8 @@ def generate_table(data, fn):
 def table_color_plot(table, names, cmap='RdBu_r', n_stokes=4, figsize=(14,4),
                     labels=("Stokes I", "Stokes Q", "Stokes U", "Stokes V"),
                     clabels=("% difference", "% difference", "% difference", "% difference"),
-                    is_percent=(True, True, True, True), polar=False, vmax=None):
+                    is_percent=(True, True, True, True), polar=False, vmax=None, shrink_text_by=2.5,
+                    upper_tri_only=True):
     """Plot a 2D array indexed by the list 'names' on each axis.
     Usually for plotting output of generate_table for comparisons
     """
@@ -80,21 +81,47 @@ def table_color_plot(table, names, cmap='RdBu_r', n_stokes=4, figsize=(14,4),
     else:
         fig, ax = plt.subplots(1, n_stokes, figsize=figsize)
 
-    for i,label in enumerate(labels[:n_stokes]):
-        not_percent = not is_percent[i]
+    for i_stokes,label in enumerate(labels[:n_stokes]):
         if vmax is None:
-            lvmax = np.max(np.abs(table[:,:,i] * (100,1)[not_percent] ))
+            lvmax = np.max(np.abs(table[:, :, i_stokes] * (1,100)[is_percent[i_stokes]]))
         else:
-            lvmax = vmax[i]
+            lvmax = vmax[i_stokes]
 
         if cmap == 'RdBu_r' or cmap == 'bwr':
             lvmin = -lvmax
         else:
             lvmin = 0
 
-        im, cbar = _heatmap(table[:,:,i]*(100, 1)[not_percent], names, names, ax=ax[i], cmap=cmap, cbarlabel=clabels[i], vmax=lvmax, vmin=lvmin)
-        ax[i].set_title(label)
-        _annotate_heatmap(im, valfmt=("{x:.2f}%", "{x:.2g}")[not_percent], threshold=lvmax/2)
+        row_labels = names
+        col_labels = names
+        if n_stokes == 4:
+            if i_stokes == 1 or i_stokes == 3:
+                row_labels = [""]*len(names)
+            if i_stokes == 2 or i_stokes == 3:
+                col_labels = [""]*len(names)
+        elif n_stokes == 3:
+            if i_stokes == 1 or i_stokes == 2:
+                row_labels = [""]*len(names)
+
+        if upper_tri_only:
+            # Zero table elements below and on the diagonal
+            for tab_i in range(table.shape[0]):
+                for tab_j in range(table.shape[1]):
+                    if tab_i >= tab_j:
+                        table[tab_i, tab_j, :] = 0
+            # Take out first column and last row of labels and table
+            row_labels = row_labels[:-1]
+            col_labels = col_labels[1:]
+            table_vals = table[:-1, 1:, i_stokes]*(1,100)[is_percent[i_stokes]]
+        else:
+            table_vals = table[:, :, i_stokes]*(1,100)[is_percent[i_stokes]]
+
+        im, cbar = _heatmap(table_vals, row_labels, col_labels, ax=ax[i_stokes],
+                            cmap=cmap, cbarlabel=clabels[i_stokes], vmax=lvmax, vmin=lvmin)
+        _annotate_heatmap(im, valfmt=("{x:.2g}", "{x:.2f}%")[is_percent[i_stokes]], threshold=lvmax/2,
+                          shrink_text_by=shrink_text_by)
+        ax[i_stokes].set_title(label)
+
     fig.tight_layout()
     return fig
 
@@ -286,7 +313,7 @@ def _heatmap(data, row_labels, col_labels, ax=None,
 
 def _annotate_heatmap(im, data=None, valfmt="{x:.2f}",
                      textcolors=("black", "white"),
-                     threshold=None, **textkw):
+                     threshold=None, shrink_text_by=1, **textkw):
     """
     A function to annotate a heatmap.
 
@@ -329,7 +356,8 @@ def _annotate_heatmap(im, data=None, valfmt="{x:.2f}",
     if isinstance(valfmt, str):
         valfmt = matplotlib.ticker.StrMethodFormatter(valfmt)
 
-    plt.rc('font', size=plt.rcParams['font.size']-2)
+    old_size = plt.rcParams['font.size']
+    plt.rc('font', size=old_size - shrink_text_by)
 
     # Loop over the data and create a `Text` for each "pixel".
     # Change the text's color depending on the data.
@@ -337,9 +365,10 @@ def _annotate_heatmap(im, data=None, valfmt="{x:.2f}",
     for i in range(data.shape[0]):
         for j in range(data.shape[1]):
             kw.update(color=textcolors[int(abs(data[i, j]) > threshold)])
-            text = im.axes.text(j, i, valfmt(data[i, j], None), **kw)
+            if data[i,j] != 0.0:
+                text = im.axes.text(j, i, valfmt(data[i, j], None), **kw)
             texts.append(text)
     
-    plt.rc('font', size=plt.rcParams['font.size']+2)
+    plt.rc('font', size=old_size)
 
     return texts
