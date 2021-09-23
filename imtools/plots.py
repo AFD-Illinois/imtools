@@ -353,7 +353,7 @@ def subplots_adjust_square(fig, nx, ny, bottom=0.05, top=0.95, left=0.05, right=
 
 # Local support functions
 def _colorbar(mappable, size="5%", pad=0.05):
-    """ the way matplotlib colorbar should have been implemented """
+    """the way matplotlib colorbar should have been implemented"""
     from mpl_toolkits.axes_grid1 import make_axes_locatable
     ax = mappable.axes
     fig = ax.figure

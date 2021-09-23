@@ -28,6 +28,7 @@ for file in sys.argv[1:]:
     ot.write("{:.5},{:.5},{:.5},".format(im2.lpfrac_int(), im2.cpfrac_int(), im2.evpa_int()))
     ot.write("{:.5},{:.5},{:.5},{:.5},".format(*stats.polar_abs_integrated(im1, im2)))
     ot.write("{:.5},{:.5},{:.5},{:.5}".format(*stats.mses(im1, im2)))
+    ot.write("{:.5},{:.5},{:.5},{:.5}".format(*stats.mses(im1.blurred(20), im2.blurred(20))))
 
     ot.write("\n")
     i += 1
