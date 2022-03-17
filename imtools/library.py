@@ -164,7 +164,7 @@ class ImageSet(object):
 
     # Parallel operations
     def average_image(self, flux, spin, rhigh, nprocs=N_PROCS):
-        """Return the "average" image of a run, summing all Stokes of all images and dividing
+        """Return the "average" image of a run, summing all Stokes of all images and dividing.
         This is not good for polarized images: the average will not be representative
         """
         def merge(n, other, output):
@@ -178,14 +178,16 @@ class ImageSet(object):
         return image
     
     def run_on(self, flux, spin, rhigh, fn, nprocs=N_PROCS):
-        """Apply a function to every existing image in a model
+        """Apply a function to every existing image in a model.
+
         :returns: a list of results
         """
         read_and_fn = lambda imname: fn(read_image(imname)) 
         return map_parallel(read_and_fn, self.get_all_fnames(flux, spin, rhigh), nprocs)
 
     def run_lc(self, flux, spin, rhigh, fn, nprocs=N_PROCS):
-        """Apply a function to every image in a model, and also return the simulation time of the image
+        """Apply a function to every image in a model, and also return the simulation time of the image.
+
         :returns: a list of tuples (t, fn(image))
         """
         fn_and_t = lambda image: (image.t, fn(image))
