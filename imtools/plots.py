@@ -1,4 +1,4 @@
-"""
+__license__ = """
  File: plots.py
  
  BSD 3-Clause License
@@ -36,8 +36,8 @@
 
 import numpy as np
 
-"""
-Different plots that can be made of images, or combinations of images.
+__doc__ = \
+"""Different plots that can be made of images, or combinations of images.
 These are the functions which use an existing axis, for more complete
 functions which return a whole figure see reports.py
 """

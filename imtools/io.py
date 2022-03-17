@@ -1,4 +1,4 @@
-"""
+__license__ = """
  File: io.py
  
  BSD 3-Clause License
@@ -32,15 +32,14 @@
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-# io.py
-
 import numpy as np
 import h5py
 
 from imtools.image import Image
 
-"""
-Read (parts of) image files
+__doc__ = \
+"""Read all or parts of image files.  Supports reading data from a few types of files,
+but full parameters and Image objects only from the ``ipole`` HDF5 format.
 """
 
 def read(fname, **kwargs):
@@ -50,7 +49,8 @@ def read(fname, **kwargs):
 
 
 def read_image_parameters(fname, load_fluid_header=False):
-    """Read just the parameters dict.  Useful if reading many images run with the same parameters.
+    """Read just the parameters dictionary from an ``ipole`` image file.
+    Useful if reading many images run with the same parameters.
     """
     infile = h5py.File(fname, "r")
     header = hdf5_to_dict(infile['header'])
@@ -74,22 +74,24 @@ def read_image_array(fname):
 # TODO mutable default arg is probably v bad
 def read_image(fname, name=None, load_fluid_header=False, parameters={}, format_hint="ipole", units="cgs", only_unpolarized=False):
     """Read image from the given path or file object.
-    @param fname: name (preferably) of file.  Limited support for hdf5 file objects if that's useful for performance
-    @param name: Optionally add a name as an identifier in plots/text output
-    @param load_fluid_header: Whether to load all the GRMHD parameters in ipole HDF5 images
-    @param parameters: Anything that should be added to the Image parameters
-    @param format_hint: resolve ambiguous text file image formats. Currently used for:
-        * "odyssey": use odyssey format for 8-column files: alpha, beta, I, Q, U, V, unpol, tau
-        * "ipole": use ipole format for 8-column files: i, j, unpol, I, Q, U, V, tau
-    @param units: whether to renormalize
-    @param only_unpolarized: even if the image has polarization data, load just the unpolarized version into stokes I instead
 
-    @return standard Image object
+    :param fname: name (preferably) of file.  Limited support for hdf5 file objects if that's useful for performance
+    :param name: Optionally add a name as an identifier in plots/text output
+    :param load_fluid_header: Whether to load all the GRMHD parameters in ipole HDF5 images
+    :param parameters: Anything that should be added to the Image parameters
+    :param format_hint:
+        | Resolve ambiguous text file image formats. Currently used for:
+        | * "odyssey" to use odyssey format for 8-column files: ``alpha, beta, I, Q, U, V, unpol, tau``
+        | * "ipole" to use ipole format for 8-column files: ``i, j, unpol, I, Q, U, V, tau``
+    :param units: whether to renormalize
+    :param only_unpolarized: even if the image has polarization data, load just the unpolarized version into stokes I instead.
+    :returns: standard :class:`imtools.image.Image` object read from file
 
-    Caveats:
-    * Imtools expects the array to consist of CGS intensity values.  Images in Jy/px will have to be renormalized
-    * Filetype guessing is best-effort especially for textfiles.  Parameters even more so.  More consistent "models" are coming
-    * non-square images are supported only in the ipole HDF5 format.
+    Caveats of this function:
+
+        * ``imtools`` expects the array to consist of CGS intensity values -- some formats require renormalization after reading.
+        * Filetype guessing is best-effort especially for text files. Parameters even more so. Use the format_hint.
+        * non-square images are supported only in the ipole HDF5 format.
     """
     if isinstance(fname, str):
         manage_file = True
@@ -238,7 +240,7 @@ def read_image(fname, name=None, load_fluid_header=False, parameters={}, format_
 
 
 def hdf5_to_dict(h5grp):
-    """Recursively load group contents into nested dictionaries"""
+    """Recursively load group contents into nested dictionaries."""
     do_close = False
     if isinstance(h5grp, str):
         h5grp = h5py.File(h5grp, "r")
@@ -261,7 +263,7 @@ def hdf5_to_dict(h5grp):
     return ans
 
 def decode_all(bytes_dict):
-    """Recursively un-bytes some HDF5 bytestrings for Python3 compatibility"""
+    """Recursively un-bytes some HDF5 bytestrings for Python3 compatibility."""
     for key in bytes_dict:
         # Decode bytes/numpy bytes
         if isinstance(bytes_dict[key], (bytes, np.bytes_)):
@@ -275,8 +277,3 @@ def decode_all(bytes_dict):
             decode_all(bytes_dict[key])
 
     return bytes_dict
-
-def parse_name(fname):
-    # This is left available, but currently there don't seem to be
-    # "libraries" of dat files with consistent naming schemes
-    return {}

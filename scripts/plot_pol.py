@@ -8,7 +8,7 @@
 import sys
 
 from imtools.io import read_image
-from imtools.reports import plot_pol, plot_stokes_square
+from imtools.figures import plot_pol, plot_stokes_square
 
 if __name__ == "__main__":
 

@@ -1,4 +1,4 @@
-"""
+__license__ = """
  File: comparison.py
  
  BSD 3-Clause License
@@ -32,24 +32,26 @@
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-# Overall statistics and figures for comparisons of >2 closely-related images
-# Probably not useful outside of the polarized comparison, and maybe bug-hunting
+__doc__ = \
+"""Tools related to comparing sets (>2 images) of similar polarized images.
+Probably not broadly useful outside the context of comparing polarized GRRT schemes.
+"""
 
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
-from imtools.reports import plot_stokes_rows
-
+from imtools.figures import plot_stokes_rows
 from imtools.plots import _colorbar
 
 def generate_table(data, fn):
     """Generate a comparison table between several images.
-    Takes a dict 'data' of Image objects keyed by names, and an operation 'fn' which
-    takes two image objects and returns a list of 4 results (see e.g. 'stats.mses')
 
-    Returns a 2D array of each comparator output, indexed by the keys() list
-    in each direction (i.e. table[i,i] == 0 for most comparison metrics)
+    :param data: a dictionary of Image objects keyed by names
+    :param fn: a function which takes two Image objects and returns
+               a list of 4 results (see e.g. 'stats.mses')
+    :returns: table: a 2D array of each comparator output, indexed by the keys() list
+                   in each direction (i.e. table[i,i] == 0 for most comparison metrics)
     """
     names = list(data.keys())
     nnames = len(names)
@@ -65,9 +67,9 @@ def generate_table(data, fn):
 
     return table
 
-def table_color_plot(table, names, cmap='RdBu_r', n_stokes=4, figsize=(14,4),
+def table_color_plot(table, names, cmap='RdBu_r', n_tables=4, figsize=(14,4),
                     labels=("Stokes I", "Stokes Q", "Stokes U", "Stokes V"),
-                    clabels=("% difference", "% difference", "% difference", "% difference"),
+                    clabels=("%", "%", "%", "%"),
                     is_percent=(True, True, True, True), polar=False, vmax=None, shrink_text_by=2.5,
                     upper_tri_only=True):
     """Plot a 2D array indexed by the list 'names' on each axis.
@@ -75,17 +77,17 @@ def table_color_plot(table, names, cmap='RdBu_r', n_stokes=4, figsize=(14,4),
     """
     names = list(names)
     nnames = len(names)
-    if n_stokes == 4:
+    if n_tables == 4:
         fig, ax = plt.subplots(2, 2, figsize=figsize)
         ax = ax.flatten()
     else:
-        fig, ax = plt.subplots(1, n_stokes, figsize=figsize)
+        fig, ax = plt.subplots(1, n_tables, figsize=figsize)
 
-    for i_stokes,label in enumerate(labels[:n_stokes]):
+    for i_table,label in enumerate(labels[:n_tables]):
         if vmax is None:
-            lvmax = np.max(np.abs(table[:, :, i_stokes] * (1,100)[is_percent[i_stokes]]))
+            lvmax = np.max(np.abs(table[:, :, i_table] * (1,100)[is_percent[i_table]]))
         else:
-            lvmax = vmax[i_stokes]
+            lvmax = vmax[i_table]
 
         if cmap == 'RdBu_r' or cmap == 'bwr':
             lvmin = -lvmax
@@ -94,13 +96,12 @@ def table_color_plot(table, names, cmap='RdBu_r', n_stokes=4, figsize=(14,4),
 
         row_labels = names
         col_labels = names
-        if n_stokes == 4:
-            if i_stokes == 1 or i_stokes == 3:
+        if n_tables == 4:
+            if i_table == 1 or i_table == 3:
                 row_labels = [""]*len(names)
-            if i_stokes == 2 or i_stokes == 3:
+            if i_table == 2 or i_table == 3:
                 col_labels = [""]*len(names)
-        elif n_stokes == 3:
-            if i_stokes == 1 or i_stokes == 2:
+        elif i_table != 0:
                 row_labels = [""]*len(names)
 
         if upper_tri_only:
@@ -112,15 +113,15 @@ def table_color_plot(table, names, cmap='RdBu_r', n_stokes=4, figsize=(14,4),
             # Take out first column and last row of labels and table
             row_labels = row_labels[:-1]
             col_labels = col_labels[1:]
-            table_vals = table[:-1, 1:, i_stokes]*(1,100)[is_percent[i_stokes]]
+            table_vals = table[:-1, 1:, i_table]*(1,100)[is_percent[i_table]]
         else:
-            table_vals = table[:, :, i_stokes]*(1,100)[is_percent[i_stokes]]
+            table_vals = table[:, :, i_table]*(1,100)[is_percent[i_table]]
 
-        im, cbar = _heatmap(table_vals, row_labels, col_labels, ax=ax[i_stokes],
-                            cmap=cmap, cbarlabel=clabels[i_stokes], vmax=lvmax, vmin=lvmin)
-        _annotate_heatmap(im, valfmt=("{x:.2g}", "{x:.2f}%")[is_percent[i_stokes]], threshold=lvmax/2,
+        im, cbar = _heatmap(table_vals, row_labels, col_labels, ax=ax[i_table],
+                            cmap=cmap, cbarlabel=clabels[i_table], vmax=lvmax, vmin=lvmin, aspect='auto')
+        _annotate_heatmap(im, valfmt=("{x:.2g}", "{x:.2f}%")[is_percent[i_table]], threshold=lvmax/2,
                           shrink_text_by=shrink_text_by)
-        ax[i_stokes].set_title(label)
+        ax[i_table].set_title(label)
 
     fig.tight_layout()
     return fig

@@ -1,4 +1,4 @@
-"""
+__license__ = """
  File: library.py
  
  BSD 3-Clause License
@@ -46,17 +46,18 @@ from imtools.parallel import map_parallel, iter_parallel
 MAX_N_IMAGES = 10000
 N_PROCS = 15
 
+__doc__ = \
+"""Tools for managing sets and libraries of images, and retrieving
+sets of related images in order.
+"""
 
 class ImageSet(object):
     """An ImageSet represents a folder containing images from a set of 60 models, sharing
     all of the same imaging choices and differing only in underlying physics.
-    Thus the only parameters it needs to distinguish models are:
-    BH flux level MAD/SANE
-    BH spin
-    Electron model, usually parameterized solely by Rhigh
-
-    If you have more images, see Library
+    Thus the only parameters it needs to distinguish models are BH flux level (MAD/SANE),
+    BH spin, and the electron heating model (usually parameterized solely by Rhigh).
     """
+    # TODO CK's magic property library would make all this a lot less static
     canon_fluxes = ("MAD", "SANE")
     canon_spins = ("-0.94", "-0.5", "0.0", "0.5", "0.94")
     canon_rhighs = ("1", "10", "20", "40", "80", "160")
@@ -71,7 +72,6 @@ class ImageSet(object):
             self.names = {}
             for fname in glob.iglob(os.path.join(basedir, "**", "*.h5"), recursive=True):
                 # Skip even building the expensive Image object.  Just HDF5
-                # TODO we can multithread this. we have the technology -- just need a span of properties beforehand...
                 try:
                     im_h5 = h5py.File(fname, "r")
                     if '/fluid_header/geom/mks/a' in im_h5:
@@ -155,6 +155,7 @@ class ImageSet(object):
     # These should all be backend-independent as they manipulate images or collections
     # TODO time-based gets: get image closest to physical time, etc
     def get_image(self, flux, spin, rhigh, nimg, **kwargs):
+        """Get the image with """
         imgname = self.get_fname(flux, spin, rhigh, nimg, **kwargs)
         if imgname is None:
             return None
@@ -178,14 +179,14 @@ class ImageSet(object):
     
     def run_on(self, flux, spin, rhigh, fn, nprocs=N_PROCS):
         """Apply a function to every existing image in a model
-        @return a list of results
+        :returns: a list of results
         """
         read_and_fn = lambda imname: fn(read_image(imname)) 
         return map_parallel(read_and_fn, self.get_all_fnames(flux, spin, rhigh), nprocs)
 
     def run_lc(self, flux, spin, rhigh, fn, nprocs=N_PROCS):
         """Apply a function to every image in a model, and also return the simulation time of the image
-        @return a list of tuples (t, fn(image))
+        :returns: a list of tuples (t, fn(image))
         """
         fn_and_t = lambda image: (image.t, fn(image))
         read_and_fn_and_t = lambda imname: fn_and_t(read_image(imname))
@@ -227,9 +228,3 @@ class ImageSet(object):
             ts.append(image.t)
             del image
         return (ts, results)
-
-
-class Library(object):
-    """A Library is any collection of images.  It keeps track of all parameters with a Model object.
-    Images are stored in a database indexed by Model and dump number
-    """
