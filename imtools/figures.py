@@ -1,4 +1,4 @@
-"""
+__license__ = """
  File: reports.py
  
  BSD 3-Clause License
@@ -41,11 +41,12 @@ from imtools.plots import *
 import imtools.stats as stats
 #from imtools.grey_plot import plot_I_greyscale
 
-"""
-Reports take an image(s) or image set(s) and return a figure object for any further
-modification or saving. (You can modify the individual axes by running fig.get_axes())
+__doc__ = \
+"""Figures take an ``Image`` object(s) or set(s), plot them in some form including colorbars/layout/etc,
+and return a ``matplotlib.figure.Figure`` object for any further modification or saving.
+(You can modify the individual axes by running fig.get_axes())
 
-Some reports also optionally print statistics to console.
+Some of these figure functions also optionally print statistics to console.
 """
 
 def compare_unpol(image1, image2, scale_image=False, same_colorscale=False, print_stats=True, figsize=(20,5), **kwargs):
@@ -209,15 +210,12 @@ def plot_stokes_rows(images, figsize=(12,12), units="Jy", n_stokes=4, vmax=None,
 
     return fig
 
-def get_snapshots_at(nimg, spins=None, mad_spins=ImageSet.canon_spins, sane_spins=ImageSet.canon_spins,
-                     rhighs=ImageSet.canon_rhighs, rotated=True):
-    return
-
 def collage(library, nimg, greyscale="none", evpa_rainbows=False, rotated=False, show_spin=False, mad_spins=ImageSet.canon_spins,
                     sane_spins=ImageSet.canon_spins, rhighs=ImageSet.canon_rhighs, figsize=(16,9), zoom=2, blur=0, vmax=None, average=False,
                     title="", evpa=True, n_evpa=20, evpa_scale="none", compress_scale=False, duplicate=False, verbose=False):
-    """Generate a figure with a collage of all models at a particular snapshot, or averaged
-    @param library:
+    """Generate a figure with a collage of all models at a particular snapshot, or averaged.
+
+    :param library: The ImageSet object
     """
     fig = plt.figure(figsize=figsize)
     fig.suptitle(title)

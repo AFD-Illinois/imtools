@@ -1,4 +1,4 @@
-"""
+__license__ = """
  File: stats.py
  
  BSD 3-Clause License
@@ -34,8 +34,8 @@
 
 import numpy as np
 
-"""
-Tools for calculating derived quantities (image2 images or reductions) based on an image.
+__doc__ = \
+"""Tools for calculating derived quantities (image2 images or reductions) based on an image.
 Should all be in the form def q(image) to be accessible as image.
 """
 
@@ -158,11 +158,11 @@ def rels_integrated(image1, image2):
 def polar_rels_integrated(image1, image2):
     return np.array([rel_integrated(image1.I * image1.scale, image2.I * image2.scale),
                     image2.lpfrac_int() / image1.lpfrac_int() - 1,
-                    image2.evpa_int() - image1.evpa_int(),
+                    image2.lpfrac_av() / image1.lpfrac_av() - 1,
                     image2.cpfrac_int() / image1.cpfrac_int() - 1])
 
 def polar_abs_integrated(image1, image2):
     return np.array([image2.flux() - image1.flux(),
                     image2.lpfrac_int() - image1.lpfrac_int(),
-                    image2.evpa_int() - image1.evpa_int(),
+                    image2.lpfrac_av() - image1.lpfrac_av(),
                     image2.cpfrac_int() - image1.cpfrac_int()])

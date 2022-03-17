@@ -1,4 +1,4 @@
-"""
+__license__ = """
  File: ehtim_compat.py
  
  BSD 3-Clause License
@@ -41,6 +41,11 @@ try:
 except ModuleNotFoundError:
     print("Couldn't import ehtim.  Compatibility & some plots disabled.")
     have_ehtim = True
+
+"""Conversions between "Image" objects in this library and "Image" objects in
+`eht-imaging <https://github.com/achael/eht-imaging>`_.
+Not all elements of each object are supported, YMMV.
+"""
 
 def from_eht_im(im):
     # TODO fill properties struct...

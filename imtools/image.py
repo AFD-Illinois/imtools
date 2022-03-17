@@ -1,4 +1,4 @@
-"""
+__license__ = """
  File: image.py
  
  BSD 3-Clause License
@@ -32,7 +32,9 @@
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-# image.py
+__doc__ = \
+"""
+"""
 
 import numpy as np
 import numpy.fft as fft
@@ -49,8 +51,7 @@ from imtools.units import cgs
 # All as one "model" or separate?
 
 def _power_of_two(target):
-    """Finds the next greatest power of two
-    """
+    """Finds the next greatest power of two."""
     cur = 1
     if target > 1:
         for i in range(0, int(target)):
@@ -62,6 +63,7 @@ def _power_of_two(target):
         return 1
 
 def _visibilities_from_image(imarr, fft_pad_factor):
+    """Get visibilities given an image, by applying an FFT"""
     xdim = imarr.shape[0]
     ydim = imarr.shape[1]
     # Padded image size
@@ -90,27 +92,27 @@ class Image(object):
                     init_type="one_array_forward"):
         """Initialize an Image object from data.
 
-        @param: properties: dict of image properties.
-        This has no standard format on account of there's no standard image format.
-        Generally this library expects the ipole metadata to be present here,
-        see ipole image format doc on Illinois wiki:
-        https://github.com/AFD-Illinois/docs/wiki/Image-Format
+        :param properties: dict of image properties.
+            This has no standard format on account of there's no standard image format.
+            Generally this library expects the ipole metadata to be present here,
+            see ipole image format doc on Illinois
+            `docs wiki <https://github.com/AFD-Illinois/docs/wiki/Image-Format>`_
+        :param array{1-4}:
+            Stokes parameters in CGS. Contents interpreted based on init_type.
 
-        @param array1, array2, array3, array4: Stokes parameters in CGS. Contents interpreted based on init_type.
-            one_array_forward: array of Stokes in index-first form i,j,S.
-            one_array_backward: array in Stokes-first form S,i,j.
-            multi_arrays_stokes: four arrays size i,j representing I,Q,U,V.
-            multi_arrays_rl: NOT IMPLEMENTED -- initialize from right- and left-circular components
-
+            * "one_array_forward": array of Stokes in index-first form i,j,S.
+            * "one_array_backward": array in Stokes-first form S,i,j.
+            * "multi_arrays_stokes": four arrays size i,j representing I,Q,U,V.
+            * "multi_arrays_rl": NOT IMPLEMENTED -- initialize from right- and left-circular components
+            
             In all cases, i, j, should be ordered such that when plotted wiht meshgrid or imshow(origin='lower'),
             the resulting image "looks correct" with North pointing in the +y direction
-
-        @param init_type: see above
-        @param tau: if not none, set optical depth member tau to this array
-        @param tauF: if not none, set Faraday depth member tauF to this array
-        @param unpol: if not none, add a version of stokes I computed with unpolarized transport.
-        Note that unpolarized images are better off setting just stokes I --
-        this member is for comparisons and sanity checks
+        :param init_type: see above
+        :param tau: if not none, set optical depth member tau to this array
+        :param tauF: if not none, set Faraday depth member tauF to this array
+        :param unpol: if not none, add a version of stokes I computed with unpolarized transport.
+                      Note that unpolarized images are better off setting just stokes I --
+                      this member is for comparisons and sanity checks
         """
         # Leave the possibility for initializing ehtim-style RL images
         if init_type == "one_array_forward":
@@ -138,6 +140,10 @@ class Image(object):
 
 
     def parse_properties(self, properties):
+        """Set some member variables based on a general 'properties' dictionary.
+        Generally supports only dictionaries in the format read from ``ipole``
+        image files using e.g. ``hdf5_to_dict``.
+        """
         self.properties = copy.deepcopy(properties)
 
         # Load camera parameters if we can
@@ -182,15 +188,24 @@ class Image(object):
 
     # Per-pixel derived quanties: return a new array of size i,j
     def lpfrac(self, mask_zero=False):
+        """Return the per-pixel fractional linear polarization.
+        
+        :param mask_zero: mask off low-emission elements by setting them to NaN.
+                          Useful if the result will inform an overlaid quiver plot.
+        """
         lpfrac = np.sqrt(self.Q**2 + self.U**2) / self.I
         if mask_zero: lpfrac[self.zero_mask()] = np.nan
         return lpfrac
     def cpfrac(self, mask_zero=False):
+        """Return the per-pixel fractional circular polarization"""
         cpfrac = self.V / self.I
         if mask_zero: cpfrac[self.zero_mask()] = np.nan
         return cpfrac
     def evpa(self, evpa_conv="EofN", mask_zero=False):
-        """Return the per-pixel EVPA in degrees in *EAST OF NORTH* convention by default"""
+        """Return the per-pixel EVPA in degrees, in *EAST OF NORTH* (EofN) convention by default.
+
+        :param evpa_conv: convention for returning EVPA, "EofN" or "NofW"
+        """
         evpa = (180./np.pi)*0.5*np.arctan2(self.U, self.Q)
         if self.evpa_0 == "W":
             evpa += 90.
@@ -204,24 +219,26 @@ class Image(object):
     
     # Integrated a.k.a zero-baseline quantities
     def lpfrac_int(self):
-        """Integrated (zero-baseline) linear polarization fraction. NOT percentage"""
+        """Integrated (zero-baseline) linear polarization fraction. NOT percentage."""
         return np.sqrt(self.Qtot()**2 + self.Utot()**2) / self.Itot()
     def cpfrac_int(self):
-        """Integrated (zero-baseline) circular polarization fraction. NOT percentage"""
+        """Integrated (zero-baseline) circular polarization fraction. NOT percentage."""
         return self.Vtot() / self.Itot()
     def evpa_int(self):
-        """Integrated (zero-baseline) EVPA"""
+        """Integrated (zero-baseline) EVPA, East of North convention"""
         return (180./np.pi)*0.5*np.arctan2(self.Utot(), self.Qtot())
 
     # Average lpfrac with given blur (NOT zero-baseline, taken per-px and averaged)
     def lpfrac_av(self, blur=20, mask_zero=False):
-        """Average linear polarization fraction per-pixel across the image.  Heavily blur dependent
+        """Average linear polarization fraction per-pixel across the image.  Heavily blur dependent!
+
+        :param blur: gaussian FWHM blur to apply before calculating the value.
+                     Set to 0 if image is already blurred.
         """
-        # TODO Jason *must* massage this, right?
         return np.mean(self.blurred(blur).lpfrac(mask_zero))
     
     def tauF_av(self):
-        """Average full Faraday rotation angle across the image"""
+        """Average full Faraday rotation angle across the image."""
         return np.mean(self.tauF)
     def tau_av(self):
         """Average optical depth across the image"""
@@ -231,6 +248,8 @@ class Image(object):
     # Image.get_t(particular_image)
     # So we can't always use members
     def get_name(self):
+        """Return image name.  All ``get_`` functions exist mostly for parallel calls,
+        which cannot take lambdas/members and thus must take class functions e.g. Image.get_name()"""
         return self.name
     def get_t(self):
         return self.t
@@ -328,7 +347,10 @@ class Image(object):
             return var > cut * np.mean(var)
 
     def extent(self, fov_units):
-        """Window corresponding to full image"""
+        """Window corresponding to full image.
+
+        :param fov_units: Units to use. "muas" for micro-arcsecond, "M" for :math:`r_g`
+        """
         if fov_units == "muas":
             return [ -self.fov_muas_x/2, self.fov_muas_x/2, -self.fov_muas_y/2, self.fov_muas_y/2 ]
         elif fov_units == "M":
@@ -337,6 +359,10 @@ class Image(object):
             print("! unrecognized units for FOV {}. quitting.".format(fov_units))
 
     def scale_flux(self, units):
+        """Return the scale factor to use on image contents, based on desired units.
+
+        :param units: "cgs" for intensity in cgs units, "Jy/px" or "Jy" for total flux in Jy through each pixel.
+        """
         if units == "cgs":
             return 1
         elif units == "Jy/px" or units == "Jy":
@@ -344,7 +370,7 @@ class Image(object):
 
     # Volatile Operations
     def rot90(self, rot):
-        """Rotate this image in-place 90 degrees CCW 'rot' times"""
+        """Rotate this image in-place 90 degrees counter-clockwise 'rot' times"""
         for m in Image.data_members:
             if self.__dict__[m] is not None:
                 self.__dict__[m] = np.rot90(self.__dict__[m], rot)
@@ -372,7 +398,7 @@ class Image(object):
                     init_type="multi_arrays_stokes")
 
     def rotated90(self, rot):
-        """Return an image rotated by 90 degrees CCW 'rot' times"""
+        """Return an image rotated by 90 degrees counter-clockwise 'rot' times."""
         new_vars = {}
         for m in Image.data_members:
             if self.__dict__[m] is not None:
@@ -387,15 +413,14 @@ class Image(object):
                     init_type="multi_arrays_stokes")
 
     def blurred(self, fwhm=20):
-        """Return a version of this image blurred by a circular gaussian of 
-        """
+        """Return a version of this image blurred by a circular gaussian of width 'fwhm' micro-arcseconds."""
         fwhm_px = fwhm / self.fov_muas_x * self.nx
         sigma = (fwhm_px / (2 * np.sqrt(2 * np.log(2))))
         I = gaussian_filter(self.I, sigma=sigma)
         Q = gaussian_filter(self.Q, sigma=sigma)
         U = gaussian_filter(self.U, sigma=sigma)
         V = gaussian_filter(self.V, sigma=sigma)
-        # TODO not sure these mean anything
+        # TODO not sure these parameters mean anything after blur
         if self.tau is not None:
             tau = gaussian_filter(self.tau, sigma=sigma)
         else:
@@ -408,10 +433,11 @@ class Image(object):
             unpol = gaussian_filter(self.unpol, sigma=sigma)
         else:
             unpol = None
-        # TODO does this change any properties?
+        # TODO does blurring change any properties?
         return Image(self.properties.copy(), I, Q, U, V, tau=tau, tauF=tauF, unpol=unpol, init_type="multi_arrays_stokes")
     
     def downsampled(self, skip=2):
+        """Return a version of this image downsampled by skipping every 'skip' pixels."""
         I = self.I[::skip, ::skip]
         Q = self.Q[::skip, ::skip]
         U = self.U[::skip, ::skip]
@@ -434,10 +460,12 @@ class Image(object):
         return Image(props, I, Q, U, V, tau=tau, tauF=tauF, unpol=unpol, init_type="multi_arrays_stokes")
     
     def visibilities(self, pad_x=10):
-        """Get the complex visibilities corresponding to the image
-        @param Number of times by which to pad FFT to preserve resolution in desired area.
-               Image will be padded with zeros to a total of N1*pad_x by N2*pad_x pixels.
-        @return "Image" with complex visibilities of each Stokes parameter
+        """Get the complex visibilities corresponding to the image.
+
+        :param pad_x: Number of times by which to pad FFT with zeros, to preserve resolution in desired area.
+                      Image will be padded out to a total of N1*pad_x by N2*pad_x pixels.
+        :returns: "Image" with complex visibilities of each Stokes parameter. Note most functions
+                will not behave correctly in this version.
         """
         new_vars = {}
         for m in Image.data_members:
@@ -450,11 +478,13 @@ class Image(object):
                     init_type="multi_arrays_stokes")
 
     def visibility_amplitudes(self, pad_x=10, crop_x=10):
-        """Get the complex visibilities corresponding to the image
-        @param pad_x Number of times by which to pad FFT to preserve resolution in desired area.
+        """Get the visibility amplitudes corresponding to the image.
+
+        :param pad_x: Number of times by which to pad FFT to preserve resolution in desired area.
                Image will be padded with zeros to a total of N1*pad_x by N2*pad_x pixels.
-        @param re_crop Crop image back to N1xN2 pixels in the center of the FFT'd version
-        @return "Image" with complex visibilities of each Stokes parameter
+        :param re_crop: Crop image back to N1xN2 pixels in the center of the FFT'd version
+        :returns: "Image" object with visibility amplitudes of each Stokes parameter. Note most functions
+                will not behave correctly in this version.
         """
         new_vars = {}
         for m in Image.data_members:
@@ -471,11 +501,13 @@ class Image(object):
                     init_type="multi_arrays_stokes")
 
     def visibility_phases(self, pad_x=4, crop_x=10):
-        """Get the complex visibilities corresponding to the image
-        @param pad_x Number of times by which to pad FFT to preserve resolution in desired area.
+        """Get the complex visibility phases corresponding to the image.
+
+        :param pad_x: Number of times by which to pad FFT to preserve resolution in desired area.
                Image will be padded with zeros to a total of N1*pad_x by N2*pad_x pixels.
-        @param re_crop Crop image back to N1xN2 pixels in the center of the FFT'd version
-        @return "Image" with complex visibilities of each Stokes parameter
+        :param re_crop: Crop image back to N1xN2 pixels in the center of the FFT'd version.
+        :returns: "Image" with complex visibilities of each Stokes parameter. Note most functions
+                will not behave correctly in this version.
         """
         new_vars = {}
         for m in Image.data_members:
@@ -493,9 +525,8 @@ class Image(object):
 
     # Operators
     def _do_op(self, other, op):
-        """Perform a math operation by iterating over relevant members and doing it with numpy
-        TODO update any cache members we add
-        """
+        """Perform a math operation by iterating over relevant members, applying with numpy to populate a new object."""
+        # TODO automatically accommodate new members?
         if type(other) == Image:
             new_vars = {}
             for m in Image.data_members:
@@ -518,9 +549,8 @@ class Image(object):
                         init_type="multi_arrays_stokes")
 
     def _do_iop(self, other, op):
-        """Perform a math operation by iterating over relevant members and doing it with numpy
-        TODO update any cache members we add
-        """
+        """Perform a math operation in-place by iterating over relevant members, applying with numpy."""
+        # TODO automatically accommodate new members?
         if type(other) == Image:
             for m in Image.data_members:
                 if self.__dict__[m] is not None and other.__dict__[m] is not None:
@@ -533,26 +563,26 @@ class Image(object):
             return self
 
     def __sub__(self, other):
-        """Difference images or subtract a constant"""
+        """Difference images or subtract a constant."""
         return self._do_op(other, "__sub__")
     def __add__(self, other):
-        """Add image values or a constant factor"""
+        """Add image values or a constant factor."""
         return self._do_op(other, "__add__")
     def __mul__(self, other):
-        """Multiply images (why?) or rescale by factor"""
+        """Multiply images (why?) or rescale by factor."""
         return self._do_op(other, "__mul__")
     def __truediv__(self, other):
-        """Elementwise division or divide by factor"""
+        """Elementwise division or divide by factor."""
         return self._do_op(other, "__truediv__")
     def __isub__(self, other):
-        """Difference images or subtract a constant"""
+        """Difference images or subtract a constant."""
         return self._do_iop(other, "__isub__")
     def __iadd__(self, other):
-        """Add image values or a constant factor"""
+        """Add image values or a constant factor."""
         return self._do_iop(other, "__iadd__")
     def __imul__(self, other):
-        """Multiply images (why?) or rescale by factor"""
+        """Multiply images (why?) or rescale by factor."""
         return self._do_iop(other, "__imul__")
     def __itruediv__(self, other):
-        """Elementwise division or divide by factor"""
+        """Elementwise division or divide by factor."""
         return self._do_iop(other, "__itruediv__")

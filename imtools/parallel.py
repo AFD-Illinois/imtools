@@ -1,4 +1,4 @@
-"""
+__license__ = """
  File: parallel.py
  
  BSD 3-Clause License
@@ -32,8 +32,6 @@
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-# Tools for running embarrassingly parallel operations with multiple processes
-
 import multiprocessing
 
 # Hack for passing lambdas to a parallel function:
@@ -41,26 +39,34 @@ import multiprocessing
 # Credit https://medium.com/@yasufumy/python-multiprocessing-c6d54107dd55
 _func = None
 
-def worker_init(func):
+__doc__ = \
+"""Tools for running embarrassingly parallel operations using multiple processes.
+"""
+
+def _worker_init(func):
     global _func
     _func = func
 
-def worker(x):
+def _worker(x):
     return _func(x)
 
 def map_parallel(function, input_list, nprocs=None):
     """Run a function in parallel and return a list of all the results. Best for whole-image reductions.
     Takes lambdas thanks to some happy hacking
     """
-    with multiprocessing.Pool(nprocs, initializer=worker_init, initargs=(function,)) as p:
-        return p.map(worker, input_list)
+    with multiprocessing.Pool(nprocs, initializer=_worker_init, initargs=(function,)) as p:
+        return p.map(_worker, input_list)
 
 def iter_parallel(function, merge_function, input_list, output, nprocs=None, initializer=None, initargs=()):
-    """Run a function in parallel with Python's multiprocessing
-    'function' must not be a lambda, must take only an element of input_list.
-    'merge_function' must take the list element number, the return of 'function', and 'output',
-    which it must update as an accumulator.  Note merge_function cannot be a lambda as it has a side effect,
-    but can be defined locally.
+    """Run a function in parallel with Python's multiprocessing, applied either independently or as a reduction,
+    depending on the implementation of ``merge_function``.
+
+    :param function: function to run. Must not be a lambda, must take a single element of ``input_list``.
+    :param merge_function: function merging outputs. Must take the list element number, the output of ``function``,
+                            and whatever is passed as ``output``, to be used as an accumulator (or list of results).
+                            Also cannot be a lambda as it has a side effect, but can be defined locally.
+    :param input_list: list of input filenames/images/whatever
+    :param output: variable or list of appropriate size for writing results
     """
     if initializer is not None:
         pool = multiprocessing.Pool(nprocs, initializer=initializer, initargs=initargs)
@@ -81,6 +87,7 @@ def iter_parallel(function, merge_function, input_list, output, nprocs=None, ini
         pool.join()
 
 def set_mkl_threads(n_mkl):
+    """Try to set the MKL numpy backend to use ``n_mkl`` threads."""
     try:
         import ctypes
         mkl_rt = ctypes.CDLL('libmkl_rt.so')

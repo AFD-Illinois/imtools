@@ -5,7 +5,7 @@ import sys
 from imtools.parallel import map_parallel
 from imtools.image import Image
 from imtools.library import ImageSet
-from imtools.reports import *
+from imtools.figures import *
 
 lib = ImageSet(sys.argv[1])
 blur = int(sys.argv[2])
