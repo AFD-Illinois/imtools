@@ -50,6 +50,15 @@ Some of these figure functions also optionally print statistics to console.
 """
 
 def compare_unpol(image1, image2, scale_image=False, same_colorscale=False, print_stats=True, figsize=(20,5), **kwargs):
+    """Comparison of just Stokes I between images, showing both images with their absolute and relative differences.
+
+    :param image{1-2}: Image objects
+    :param scale_image: Rescale image1 to have the same total flux as image2
+    :param same_colorscale: Enforce that image1 and image2 share the same color scale
+    :param print_stats: Print total fluxes and mean squared error between images
+    :param figsize: size of returned Figure in inches
+    :param kwargs: Extra args are passed to :func:`imtools.plots.plot_var`
+    """
     if scale_image:
         scalefac = np.mean(image1.I)/np.mean(image2.I)
         clabel1 = "Scaled Intensity"
@@ -86,6 +95,13 @@ def compare_unpol(image1, image2, scale_image=False, same_colorscale=False, prin
     return fig
 
 def compare(image1, image2, relative=True, figsize=(12,6), print_stats=True):
+    """Comparison of all Stokes parameters between images, showing just the image differences.
+
+    :param image{1-2}: Image objects
+    :param relative: Use relative difference between each pair of pixels, rather than absolute
+    :param figsize: size of returned Figure in inches
+    :param print_stats: Print total fluxes and mean squared errors between each Stokes parameter
+    """
     fig, ax = plt.subplots(2, 4, figsize=figsize)
 
     diff = image2 - image1
@@ -108,8 +124,14 @@ def compare(image1, image2, relative=True, figsize=(12,6), print_stats=True):
 
 
 
-def plot_pol(image, figsize=(8,8), print_stats=True, scaled=True, evpa_ticks=True):
-    """Mimics the plot_pol.py script in ipole/scripts"""
+def plot_pol(image, figsize=(8,8), print_stats=True, evpa_ticks=True):
+    """Mimics the plot_pol.py script in ipole/scripts
+
+    :param image: Image object
+    :param figsize: size of returned Figure in inches
+    :param print_stats: Print total flux and integrated polarization stats
+    :param evpa_ticks: Overlay EVPA as a quiver plot
+    """
     fig, ax = plt.subplots(2, 2, figsize=figsize)
 
     # Total intensity
@@ -138,8 +160,14 @@ def plot_pol(image, figsize=(8,8), print_stats=True, scaled=True, evpa_ticks=Tru
 
     return fig
 
-def plot_unpol(image, figsize=(8,8), print_stats=True, scaled=True, **kwargs):
-    """Mimics the plot.py script in ipole/scripts"""
+def plot_unpol(image, figsize=(8,8), print_stats=True, **kwargs):
+    """Mimics the plot.py script in ipole/scripts.
+
+    :param image: Image object
+    :param figsize: size of returned Figure in inches
+    :param print_stats: Print total flux
+    :param evpa_ticks: Overlay EVPA as a quiver plot
+    """
     fig, ax = plt.subplots(1, 1, figsize=figsize)
 
     # Total intensity
@@ -163,8 +191,17 @@ def plot_stokes_square(image, figsize=(8,10), **kwargs):
 
 
 def plot_stokes_rows(images, figsize=(12,12), units="Jy", n_stokes=4, vmax=None, consistent_scale=True, key_image=0, **kwargs):
-    """Plot a series of horizontal 4-pane Stokes images, for comparing each parameter down columns
-    Places both colorbars on the right side
+    """Plot a series of horizontal 4-pane Stokes images, arranged vertically without spacing
+    to compare each parameter down columns.  Places all colorbars along the very bottom of the figure.
+
+    :param image: list of Image objects (each should have a 'name' attribute for correct labeling!)
+    :param figsize: size of returned Figure in inches
+    :param units: "cgs" for intensity, "Jy" for Jy/px flux
+    :param n_stokes: number of Stokes parameters to plot. Normally 4 but e.g. 3 when V is trivial/undesired
+    :param vmax: list of maximum flux values, to be used as vmax for stokes I, vmax/vmin for Stokes Q, U, V
+    :param consistent_scale: Keep the scale consistent between images if setting vmax automatically
+    :param key_images: Index of the image to use when setting 'consistent_scale'
+    :param kwargs: Passed to :func:`imtools.plots.plot_all_stokes`
     """
     fig, ax = plt.subplots(len(images), n_stokes, figsize=figsize)
 
@@ -213,10 +250,7 @@ def plot_stokes_rows(images, figsize=(12,12), units="Jy", n_stokes=4, vmax=None,
 def collage(library, nimg, greyscale="none", evpa_rainbows=False, rotated=False, show_spin=False, mad_spins=ImageSet.canon_spins,
                     sane_spins=ImageSet.canon_spins, rhighs=ImageSet.canon_rhighs, figsize=(16,9), zoom=2, blur=0, vmax=None, average=False,
                     title="", evpa=True, n_evpa=20, evpa_scale="none", compress_scale=False, duplicate=False, verbose=False):
-    """Generate a figure with a collage of all models at a particular snapshot, or averaged.
-
-    :param library: The ImageSet object
-    """
+    """A very fiddly function for generating large collages from ``ImageSet``s. Candidate for cleanup if of use externally."""
     fig = plt.figure(figsize=figsize)
     fig.suptitle(title)
     width = len(mad_spins) + len(sane_spins)
@@ -293,6 +327,9 @@ def collage(library, nimg, greyscale="none", evpa_rainbows=False, rotated=False,
 
 def lightcurves(library, fn, label, mad_spins=ImageSet.canon_spins, sane_spins=ImageSet.canon_spins,
                 rhighs=ImageSet.canon_rhighs, figsize=(15.5,10)):
+    """A very fiddly function for generating large comparisons between lightcurves from ``ImageSet``s.
+    Candidate for cleanup if of use externally.
+    """
     height = len(rhighs)
     min_t = 1e7
     max_t = 0

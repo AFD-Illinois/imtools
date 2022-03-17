@@ -70,16 +70,14 @@ def mse(var1, var2):
     return np.sum(np.abs(var1 - var2)**2) / norm
 
 def mses(image1, image2):
-    """MSE of this image vs animage2.
-    Follows GRRT paper definition in dividing by the sum(var) of *first* image
-    """
+    """MSE for each variable."""
     return np.array([mse(image1.I * image1.scale, image2.I * image2.scale),
                     mse(image1.Q * image1.scale, image2.Q * image2.scale),
                     mse(image1.U * image1.scale, image2.U * image2.scale),
                     mse(image1.V * image1.scale, image2.V * image2.scale)])
 
 def ssim(var1, var2):
-    """Image similarity SSIM as defined in Gold et al eq 14"""
+    """Image structural similarity SSIM as defined in Gold et. al, eq. 14"""
     N = var1.shape[0] * var1.shape[1]
     mu_1 = np.mean(var1)
     mu_2 = np.mean(var2)
@@ -96,7 +94,7 @@ def ssims(image1, image2):
                     ssim(image1.V * image1.scale, image2.V * image2.scale)])
 
 def dssim(var1, var2):
-    """Image dissimilarity DSSIM is 1/|SSIM| - 1"""
+    """Image dissimilarity DSSIM is 1/abs(SSIM) - 1"""
     tssim = ssim(var1, var2)
     if np.isnan(tssim):
         return 0.0
@@ -145,7 +143,7 @@ def nccs(image1, image2):
                     ncc(image1.V * image1.scale, image2.V * image2.scale)])
 
 def rel_integrated(var1, var2):
-    """Relative error of summed value in a variable"""
+    """Relative difference of the sum of a variable"""
     return np.sum(var2) / np.sum(var1) - 1
 
 def rels_integrated(image1, image2):
@@ -156,12 +154,20 @@ def rels_integrated(image1, image2):
                     rel_integrated(image1.V * image1.scale, image2.V * image2.scale)])
 
 def polar_rels_integrated(image1, image2):
+    """Relative differences in the total flux, integrated & averaged
+    linear polarization fractions, and circular polarization fraction.
+    (That is, a "polar" breakdown with magnitudes instead of a "Cartesian"
+    breakdown with Stokes Parameters)
+    """
     return np.array([rel_integrated(image1.I * image1.scale, image2.I * image2.scale),
                     image2.lpfrac_int() / image1.lpfrac_int() - 1,
                     image2.lpfrac_av() / image1.lpfrac_av() - 1,
                     image2.cpfrac_int() / image1.cpfrac_int() - 1])
 
 def polar_abs_integrated(image1, image2):
+    """Absolute differences in the total flux, integrated & averaged
+    linear polarization fractions, and circular polarization fraction.
+    """
     return np.array([image2.flux() - image1.flux(),
                     image2.lpfrac_int() - image1.lpfrac_int(),
                     image2.lpfrac_av() - image1.lpfrac_av(),
