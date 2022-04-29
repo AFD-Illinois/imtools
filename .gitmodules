@@ -1,3 +1,6 @@
 [submodule "external/ehtplot"]
 	path = external/ehtplot
 	url = https://github.com/liamedeiros/ehtplot.git
+[submodule "external/hallmark"]
+	path = external/hallmark
+	url = https://github.com/l6a/hallmark.git

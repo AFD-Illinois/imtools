@@ -33,6 +33,7 @@ __license__ = """
 """
 
 import multiprocessing
+from tqdm.auto import tqdm
 
 # Hack for passing lambdas to a parallel function:
 # Initialize with a dangling function pointer and fill it at call time
@@ -54,8 +55,10 @@ def map_parallel(function, input_list, nprocs=None):
     """Run a function in parallel and return a list of all the results. Best for whole-image reductions.
     Takes lambdas thanks to some happy hacking
     """
+    input_list = list(input_list)
     with multiprocessing.Pool(nprocs, initializer=_worker_init, initargs=(function,)) as p:
-        return p.map(_worker, input_list)
+        return list(tqdm(p.imap(_worker, input_list), total=len(input_list)))
+
 
 def iter_parallel(function, merge_function, input_list, output, nprocs=None, initializer=None, initargs=()):
     """Run a function in parallel with Python's multiprocessing, applied either independently or as a reduction,

@@ -32,9 +32,9 @@ __license__ = """
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-# plots.py
-
 import numpy as np
+
+import ehtplot.color
 
 __doc__ = \
 """Different plots that can be made of images, or combinations of images.
