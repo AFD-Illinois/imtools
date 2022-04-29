@@ -1,0 +1,3 @@
+[submodule "external/ehtplot"]
+	path = external/ehtplot
+	url = https://github.com/liamedeiros/ehtplot.git

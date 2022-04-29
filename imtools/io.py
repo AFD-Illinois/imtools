@@ -237,7 +237,11 @@ def read_image(fname, name=None, load_fluid_header=False, parameters={}, format_
 
     return Image({**header, **parameters}, pol_data, tau=tau, tauF=tauF, unpol=unpol_data)
 
-
+def parse_name(fname):
+    """This function could be used to parse images without metadata,
+    but with a consistent naming scheme. Currently it does nothing.
+    """
+    return {}
 
 def hdf5_to_dict(h5grp):
     """Recursively load group contents into nested dictionaries."""

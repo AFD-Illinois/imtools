@@ -109,7 +109,7 @@ def plot_var(ax, var, image, fov_units="muas", xlabel=True, ylabel=True, add_cba
 
     return mesh
 
-def plot_unpolarized(ax, image, units="Jy", cmap='afmhot', add_title=True, clean=False, tag="", **kwargs):
+def plot_unpolarized(ax, image, units="Jy", cmap='afmhot_10us', add_title=True, clean=False, tag="", **kwargs):
     """Plot the image result of unpolarized transport.
     Separate implementation for afmhot colors and black background.
     """
@@ -123,7 +123,7 @@ def plot_unpolarized(ax, image, units="Jy", cmap='afmhot', add_title=True, clean
 
     return mesh
 
-def plot_I(ax, image, units="Jy", cmap='afmhot', add_title=True, clean=False, tag="", **kwargs):
+def plot_I(ax, image, units="Jy", cmap='afmhot_10us', add_title=True, clean=False, tag="", **kwargs):
     """Plot Stokes I.  Separate implementation for afmhot colors and black background"""
     mesh = plot_var(ax, image.I * image.scale_flux(units), image, clean=clean, cmap=cmap, **kwargs)
 
@@ -160,7 +160,7 @@ def plot_V(ax, image, **kwargs):
     """Plot Stokes V"""
     return plot_one_stokes(ax, image, 3, **kwargs)
 
-def plot_lp(ax, image, cmap='afmhot', clean=False, **kwargs):
+def plot_lp(ax, image, cmap='afmhot_10us', clean=False, **kwargs):
     """Plot the percentage of emission which is linearly polarized.
     """
     ax.set_facecolor('black')
