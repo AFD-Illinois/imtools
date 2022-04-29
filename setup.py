@@ -95,6 +95,7 @@ setup(name="imtools",
           "matplotlib",
           "h5py",
           "click",
+          "tqdm",
           "sphinx",
           "ehtim"
           ],
