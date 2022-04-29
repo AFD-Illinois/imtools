@@ -2,14 +2,7 @@ import os
 import sys
 import itertools
 
-from importlib import reload
-import numpy as np
-import matplotlib
-#matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-
 import imtools.io as imio
-import imtools.plots as ip
 import imtools.stats as stats
 
 ot = open("comp_table.csv", "w")

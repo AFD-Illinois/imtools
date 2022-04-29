@@ -94,7 +94,9 @@ setup(name="imtools",
           "scipy",
           "matplotlib",
           "h5py",
-          "sphinx"
+          "click",
+          "sphinx",
+          "ehtim"
           ],
 
       author="Ben Prather",
