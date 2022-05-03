@@ -237,6 +237,39 @@ def read_image(fname, name=None, load_fluid_header=False, parameters={}, format_
 
     return Image({**header, **parameters}, pol_data, tau=tau, tauF=tauF, unpol=unpol_data)
 
+def read_from_cache(fname, number, name=None, load_fluid_header=False, parameters={}):
+    """Read an image from an HDF5 "cache" or "summary" created with summary.py
+    There are other things in those summaries, but the image is the important part
+    """
+    if isinstance(fname, str):
+        manage_file = True
+        infile = h5py.File(fname, "r")
+    elif isinstance(fname, h5py.File):
+        manage_file = False
+        infile = fname
+        fname = infile.filename
+
+    unpol_data = infile['unpol'][number, :, :].T
+    header = hdf5_to_dict(infile['header']) #TODO read once/cache?
+    if load_fluid_header:
+        header.update(hdf5_to_dict(infile['fluid_header']))
+
+    # Carry around some useful things we picked up
+    header['fname'] = fname
+    if name is not None:
+        header['name'] = name
+
+    if manage_file:
+        infile.close()
+
+    # Copy to Stokes I, leave others blank
+    nx = unpol_data.shape[0]
+    ny = unpol_data.shape[1]
+    pol_data = np.zeros((nx,ny,4))
+    pol_data[:,:,0] = unpol_data
+
+    return Image({**header, **parameters}, pol_data, unpol=unpol_data)
+
 def parse_name(fname):
     """This function could be used to parse images without metadata,
     but with a consistent naming scheme. Currently it does nothing.

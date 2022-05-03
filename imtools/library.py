@@ -91,6 +91,9 @@ class ImageSet(object):
                         rhigh = int(im_h5['/header/electrons/trat_large'][()])
                     elif '/header/electrons/rhigh' in im_h5:
                         rhigh = int(im_h5['/header/electrons/rhigh'][()])
+                    
+                    if '/header/camera/thetacam' in im_h5:
+                        theta = int(im_h5['/header/camera/thetacam'][()])
 
                     # File names are *so* not reliable for this, but the 5M library cadence is forever
                     nimg = int(np.floor(im_h5['/header/t'][()] / 5.0))
@@ -105,8 +108,8 @@ class ImageSet(object):
                 elif "MAD" in fname or "Ma+" in fname or "Ma-" in fname or "Ma0" in fname:
                     flux = "MAD"
 
-                # Insert a new 
-                key = flux + "/" + "{:.2}".format(a) + "/" + "{}".format(rhigh)
+                # Insert a new key made from the relevant run parameters
+                key = flux + "/" + "{:.2}".format(a) + "/" + "{}".format(rhigh) + "/" + "{}".format(theta)
                 if not key in self.names:
                     self.names[key] = np.zeros(MAX_N_IMAGES, dtype="S1024")
                 
