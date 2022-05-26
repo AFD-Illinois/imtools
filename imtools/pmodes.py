@@ -1,128 +1,129 @@
+import os
+import uuid
+
 import h5py
 import numpy as np
+
 import ehtim as eh
+from ehtim.features import rex
+from ehtim.io.save import save_im_fits
 
-def get_rex(im, uniq, tag, datadir_rex="rexdata/", rerun_rex=False):
-    """Get rex-centered image and stats from image+tag.
-    :param datadir_rex: folder where profiles and rex-centered images should go
-    :param rerun_rex: if true, ignore previously-computed profiles
+from .ehtim_compat import to_eht_im
+
+
+def get_rex_profile(im, blur=20, verbose=True):
+    """Wrapper for the eht-imaging ring-extractor, "rex".
+    Returns a ring 'Profile' object with the centered image and
+    ring parameters.
     """
-    # create data directories
-    if not os.path.exists(datadir_rex):
-        os.makedirs(datadir_rex)
+    # Rex wants a filename so it can do bad string things to it.
+    # So we oblige by writing an image to /tmp, the least-worst place to do so
+    # Other arg is "postprocdir," which is unused
+    # We ensure we fail if it's written to for some reason
+    imname = "/tmp/"+str(uuid.uuid4())+".fits"
+    save_im_fits(to_eht_im(im), imname)
+    pp = rex.FindProfileSingle(imname, "/", blur=blur)
+    os.remove(imname)
 
-    # Run eht-imaging's rex algorithm on an image
-    pp = rex.FindProfileSingle(im, out_dir=datadir_rex,
-            out=uniq, save_files=True, rerun=rerun_rex, tag=tag)
-    imcent = eh.image.load_image(datadir_rex+uniq+tag+"_cent.fits")
-    with open(datadir_rex+uniq+tag+".txt",'r') as dfp:
-        rexdata = dfp.readlines()
-    diam = float(rexdata[2].split(' ')[1])
-    width = float(rexdata[10].split(' ')[1])
-    return imcent, diam, width
+    if verbose:
+        im_center = (pp.x0, pp.y0)
+        diam = pp.RingSize1[0]
+        width = pp.RingWidth[0]
+        print("{} rex center: {} diam: {} width: {}".format(im.name, im_center, diam, width))
 
-def get_pmodes(im, ms, diam=20., width=20., width_coeff=2.,
-                norm_with_StokesI=True, norm_in_int=False):
-    """Run pmodes and return beta coefficients."""
-    minr = (diam - width_coeff*width)/2.
-    maxr = (diam + width_coeff*width)/2. 
-    out = pm.pmodes(im, ms, r_min=minr, r_max=maxr,
-            norm_in_int=norm_in_int, 
-            norm_with_StokesI=norm_with_StokesI)
-  return out
+    return pp
 
-def process(fname, bluruas=0, ms=None, width_coeff=2., 
-        norm_with_StokesI=True, norm_in_int=False):
-  """Run the full pmodes pipeline on an individual image (specified by file path)."""
+def rex_and_pmodes(im, blur=20, ms=2, width_coeff=2, **kwargs):
+    """Return the PWP beta coefficient m of the image.
+    This uses the ring extractor 'rex' from eht-imaging to find the ring center & width,
+    then calculates the inner product with a set of basis functions representing patterns in EVPA
+    vs angle, with m=2 being the rotationally symmetric mode.
 
-    # get defaults
-    if ms is None: 
-        ms = np.array([2]) # The important mode
+    :param im: path to an image file readable by ehtim
+    :param blur: blur to be applied by this function in muas
+    :param ms: coefficient or list of coefficients to calculate. You probably want m=2
+    :param width_coeff: proportion of ring width considered to the rex value
+    :returns a complex number representing the mode, with abs(p) ~ polarization degree in the mode,
+                and angle(p) representing average EVPA angle vs the mode
+    """
+    # Rex wants a filename so it can do bad string things to it.
+    # So we oblige by writing an image to /tmp, the least-worst place to do so
+    # Other arg is "postprocdir," which is unused
+    # We ensure we fail if it's written to for some reason
+    pp = get_rex_profile(im, blur)
+    return pmodes_over(im, pp, blur=blur, ms=ms, width_coeff=width_coeff, **kwargs)
 
-    # get unique tags
-    uniq = get_unique_name(fname)
-    tag = "_blur{0:d}uas".format(bluruas)
+def pmodes_over(im, pp, blur=20, ms=2, width_coeff=2, **kwargs):
+    """Return PWP beta_m coefficients of an image, given a particular ring profile."""
+    # Take all the non-image properties from the centering profile pp
+    im_center = (pp.x0, pp.y0)
+    diam = pp.RingSize1[0]
+    width = pp.RingWidth[0]
+    # Center the image to our spec, the way ehtim does
+    eim = to_eht_im(im.blurred(blur))
+    deltay = -(eim.fovy()/2. - im_center[1] * eh.RADPERUAS) / eim.psize
+    deltax = (eim.fovx()/2. - im_center[0] * eh.RADPERUAS) / eim.psize
+    im_centered = eim.shift([int(np.round(deltay)), int(np.round(deltax))])
+    # Also translate width/coeff to rmin/max
+    minr = (diam - width_coeff*width) / 2
+    maxr = (diam + width_coeff*width) / 2 
+    return pmodes(im_centered, ms, r_min=minr, r_max=maxr, **kwargs)
 
-    # load image, run rex, and run pmodes
-    im = load_image(fname, bluruas=bluruas)
+def pmodes(im, ms, r_min, r_max, norm_in_int=False, norm_with_StokesI=True, return_product=False):
+    """Return PWP beta_m coefficients over the given region of a centered image.
+    
+    :param im: image object from either ehtim or imtools
+    :param ms: list of coefficients m to calculate, or single coefficient number e.g. 2
+    :param r_min, r_max: radii within which to consider linearly polarized emission
+    :param norm_in_int: normalize the sum *before* integrating, rather than after
+    :param norm_with_StokesI: normalize to *all* emission, rather than just total polarized emission
+    :param return_product: instead of summing to find the coefficient value, return the integrand P*exp(i m phi)
+    """
 
-    imcent, diam, width = get_rex(im, uniq, tag)
+    # Accept single coefficients
+    if not (isinstance(ms, list) or isinstance(ms, tuple)):
+        ms = (ms,)
 
-    return get_pmodes(imcent, ms, diam=diam, width=width, 
-                    width_coeff=width_coeff, norm_with_StokesI=norm_with_StokesI,
-                    norm_in_int=norm_in_int)  
-
-    return pmodes_out
-
-def pmodes(im, ms, r_min=0, r_max=25, norm_in_int = False, norm_with_StokesI = True):
-  """Return beta_m coefficients for m in ms within extent r_min/r_max."""
-
+    # Load image data.
     if type(im) == eh.image.Image:
+        # ehtim image
+        fov_muas = im.fovx() / eh.RADPERUAS
         npix = im.xdim
         iarr = im.ivec.reshape(npix, npix)
         qarr = im.qvec.reshape(npix, npix)
         uarr = im.uvec.reshape(npix, npix)
-        varr = im.vvec.reshape(npix, npix)
-        fov_muas = im.fovx()/eh.RADPERUAS
-
-    else if type(im) == str:
-        hfp = h5py.File(im,'r')
-        DX = hfp['header']['camera']['dx'][()]
-        dsource = hfp['header']['dsource'][()]
-        lunit = hfp['header']['units']['L_unit'][()]
-        scale = hfp['header']['scale'][()]
-        pol = np.flip(np.copy(hfp['pol']).transpose((1,0,2)),axis=0) * scale
-        hfp.close()
-        fov_muas = DX / dsource * lunit * 2.06265e11
-        npix = pol.shape[0]
-        iarr = pol[:,:,0]
-        qarr = pol[:,:,1]
-        uarr = pol[:,:,2]
-        varr = pol[:,:,3]
-
     else:
-        DX = im.Dx
-        dsource = im.dsource
-        lunit = im.lunit
-        scale = im.scale
+        # Native imtools image
         fov_muas = im.fov_muas_x
-        #pol = np.flip(np.copy(hfp['pol']).transpose((1,0,2)),axis=0) * scale
         npix = im.nx
-        iarr = im.I * scale
-        qarr = im.Q * scale
-        uarr = im.U * scale
-        varr = im.V * scale
+        iarr = im.I * im.scale
+        qarr = im.Q * im.scale
+        uarr = im.U * im.scale
 
     parr = qarr + 1j*uarr
     normparr = np.abs(parr)
     marr = parr/iarr
     phatarr = parr/normparr
+
+    # Get distances from center in px
     pxi = (np.arange(npix)-0.01)/npix-0.5
     pxj = np.arange(npix)/npix-0.5
-    mui = pxi*fov_muas
-    muj = pxj*fov_muas
-    MUI,MUJ = np.meshgrid(mui,muj)
-    MUDISTS = np.sqrt(np.power(MUI,2.)+np.power(MUJ,2.))
+    # Get distances from center in muas
+    idist, jdist = np.meshgrid(pxi*fov_muas, pxj*fov_muas)
+    dist = np.sqrt(idist**2 + jdist**2)
 
     # get angles measured East of North
     PXI,PXJ = np.meshgrid(pxi,pxj)
     angles = np.arctan2(-PXJ,PXI) - np.pi/2.
-    angles[angles<0.] += 2.*np.pi
+    angles[angles < 0.] += 2.*np.pi
 
-    # get flux in annulus
-    tf = iarr [ (MUDISTS<=r_max) & (MUDISTS>=r_min) ].sum()
+    # Annulus cut
+    annulus = (dist <= r_max) & (dist >= r_min)
 
-    # get total polarized flux in annulus
-    pf = normparr [ (MUDISTS<=r_max) & (MUDISTS>=r_min) ].sum()
-
-    #get number of pixels in annulus
-    npix = iarr [ (MUDISTS<=r_max) & (MUDISTS>=r_min) ].size
-
-    #get number of pixels in annulus with flux >= some % of the peak flux
-    ann_iarr = iarr [ (MUDISTS<=r_max) & (MUDISTS>=r_min) ]
-    peak = np.max(ann_iarr)
-    num_above5 = ann_iarr[ann_iarr > .05* peak].size
-    num_above10 = ann_iarr[ann_iarr > .1* peak].size
+    # Get properties over just the annulus
+    Iann = iarr[annulus].sum()
+    Pann = normparr[annulus].sum()
+    npix = iarr[annulus].size
 
     # compute betas
     betas = []
@@ -135,15 +136,19 @@ def pmodes(im, ms, r_min=0, r_max=25, norm_in_int = False, norm_with_StokesI = T
                 prod = marr * pbasis
             else:
                 prod = phatarr * pbasis
-            coeff = prod[ (MUDISTS <= r_max) & (MUDISTS >= r_min) ].sum()
+            coeff = prod[annulus].sum()
             coeff /= npix
         else:
             prod = parr * pbasis
-            coeff = prod[ (MUDISTS<=r_max) & (MUDISTS>=r_min) ].sum()
+            if return_product:
+                return prod
+            coeff = prod[annulus].sum()
             if norm_with_StokesI:
-                coeff /= tf
+                #print("npix: {} Pann: {}".format(npix, Pann))
+                #print("beta_2 integral: {} total annulus emission: {}".format(coeff, Iann))
+                coeff /= Iann
             else:
-                coeff /= pf
+                coeff /= Pann
             betas.append(coeff)
 
     if len(betas) == 1:

@@ -37,33 +37,45 @@ __doc__ = \
 Probably not broadly useful outside the context of comparing polarized GRRT schemes.
 """
 
+import itertools
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
+from imtools.parallel import map_parallel
 from imtools.figures import plot_stokes_rows
 from imtools.plots import _colorbar
 
-def generate_table(data, fn):
+def generate_table(data, fn, n_returns, symmetric=False):
     """Generate a comparison table between several images.
 
     :param data: a dictionary of Image objects keyed by names
     :param fn: a function which takes two Image objects and returns
-               a list of 4 results (see e.g. 'stats.mses')
-    :returns: table: a 2D array of each comparator output, indexed by the keys() list
+               a list of n_returns results (see e.g. 'stats.mses')
+    :param n_returns: length of the list of stats returned by running fn
+
+    :returns table: a 2D array of each comparator output, indexed by the keys() list
                    in each direction (i.e. table[i,i] == 0 for most comparison metrics)
     """
     names = list(data.keys())
     nnames = len(names)
 
-    table = np.zeros((nnames,nnames,4))
-    for code1 in names:
-        for code2 in names:
-            new_vec = fn(data[code1], data[code2])
-            # Don't record NaNs
-            for i in range(len(new_vec)):
-                if np.isfinite(new_vec[i]):
-                    table[names.index(code1), names.index(code2)][i] = new_vec[i]
+    # Parallel, beta2 is expensive
+    def run_fn(codes, fn=fn, data=data):
+            return np.nan_to_num(fn(data[codes[0]], data[codes[1]]), nan=1)
+
+    if symmetric:
+        all_combos = list(itertools.combinations(names, 2))
+    else:
+        all_combos = list(itertools.product(names, names))
+
+    vals = map_parallel(run_fn, all_combos)
+
+    table = np.zeros((nnames, nnames, n_returns))
+    for i, codes in enumerate(all_combos):
+        table[names.index(codes[0]), names.index(codes[1]), :] = vals[i]
+        if symmetric:
+            table[names.index(codes[1]), names.index(codes[0]), :] = -vals[i]
 
     return table
 
@@ -78,10 +90,16 @@ def table_color_plot(table, names, cmap='RdBu_r', n_tables=4, figsize=(14,4),
     names = list(names)
     nnames = len(names)
     if n_tables == 4:
-        fig, ax = plt.subplots(2, 2, figsize=figsize)
+        fig, ax = plt.subplots(2, 2, figsize=(8, 3.5))
+        ax = ax.flatten()
+    elif n_tables == 6:
+        fig, ax = plt.subplots(2, 3, figsize=(10, 3.5))
         ax = ax.flatten()
     else:
         fig, ax = plt.subplots(1, n_tables, figsize=figsize)
+
+    if isinstance(cmap, str):
+        cmap = (cmap,)*n_tables
 
     for i_table,label in enumerate(labels[:n_tables]):
         if vmax is None:
@@ -89,7 +107,7 @@ def table_color_plot(table, names, cmap='RdBu_r', n_tables=4, figsize=(14,4),
         else:
             lvmax = vmax[i_table]
 
-        if cmap == 'RdBu_r' or cmap == 'bwr':
+        if cmap[i_table] == 'RdBu_r' or cmap[i_table] == 'bwr':
             lvmin = -lvmax
         else:
             lvmin = 0
@@ -101,7 +119,14 @@ def table_color_plot(table, names, cmap='RdBu_r', n_tables=4, figsize=(14,4),
                 row_labels = [""]*len(names)
             if i_table == 2 or i_table == 3:
                 col_labels = [""]*len(names)
-        elif i_table != 0:
+        elif n_tables == 6:
+            # Quash rows except left side
+            if i_table not in (0, 3):
+                row_labels = [""]*len(names)
+            # Quash cols on bottom row
+            if i_table not in (0, 1, 2):
+                col_labels = [""]*len(names)
+        elif i_table != 0: # For plots arranged in a line
                 row_labels = [""]*len(names)
 
         if upper_tri_only:
@@ -118,12 +143,13 @@ def table_color_plot(table, names, cmap='RdBu_r', n_tables=4, figsize=(14,4),
             table_vals = table[:, :, i_table]*(1,100)[is_percent[i_table]]
 
         im, cbar = _heatmap(table_vals, row_labels, col_labels, ax=ax[i_table],
-                            cmap=cmap, cbarlabel=clabels[i_table], vmax=lvmax, vmin=lvmin, aspect='auto')
+                            cmap=cmap[i_table], cbarlabel=clabels[i_table], vmax=lvmax, vmin=lvmin, aspect='auto')
         _annotate_heatmap(im, valfmt=("{x:.2g}", "{x:.2f}%")[is_percent[i_table]], threshold=lvmax/2,
                           shrink_text_by=shrink_text_by)
-        ax[i_table].set_title(label)
+        ax[i_table].set_title(label, pad=20)
 
-    fig.tight_layout()
+    plt.subplots_adjust(hspace=0.3)
+    plt.tight_layout()
     return fig
 
 def table_interleave_plot(table, names, cmap='RdBu_r', vmax=None, n_stokes=4, figsize=(8,5), cbarlabel=""):
