@@ -45,6 +45,7 @@ from scipy.ndimage import gaussian_filter
 
 import imtools.stats as stats
 from imtools.units import cgs
+from imtools.pmodes import rex_and_pmodes, pmodes_over
 
 # TODO list:
 # Standard way of representing a GRMHD model, camera, and e- parameters, instead of a dict
@@ -230,13 +231,55 @@ class Image(object):
 
     # Average lpfrac with given blur (NOT zero-baseline, taken per-px and averaged)
     def lpfrac_av(self, blur=20, mask_zero=False):
-        """Average linear polarization fraction per-pixel across the image.  Heavily blur dependent!
+        """Average linear polarization fraction per-pixel across the image.
+        Since this is heavily blur-dependent, defaults to *adding* nominal beam blur
+        on top of the current image.
 
         :param blur: gaussian FWHM blur to apply before calculating the value.
                      Set to 0 if image is already blurred.
         """
-        return np.mean(self.blurred(blur).lpfrac(mask_zero))
+        return np.sum(np.sqrt((self.Q * self.scale)**2 + (self.U * self.scale)**2)) / self.Itot()
     
+    # beta modes are another reduction but not really a full average or image-int quantity
+    def beta(self, m=2, blur=20, **kwargs):
+        """Return the PWP beta coefficient m of the image. See pmodes.py for details.
+        Since this is heavily blur-dependent, defaults to *adding* nominal beam blur
+        on top of the current image.
+        """
+        # Cache specifically beta2 since people mostly want that
+        if m == 2:
+            try:
+                return self.beta2
+            except AttributeError:
+                self.beta2 = rex_and_pmodes(self, blur=blur, ms=2, **kwargs)
+                return self.beta2
+        else:
+            return rex_and_pmodes(self, blur=blur, ms=m, **kwargs)
+
+    def beta_over(self, pp, m=2, blur=20, **kwargs):
+        """Return the PWP beta coefficient m of the image, using a ring profile pp.
+        Does not use the centered image copy in ring profile, i.e. can repurpose
+        centerings for comparable images.
+        See pmodes.py for details.
+        """
+        # Cache specifically beta2 since people mostly want that
+        if m == 2:
+            try:
+                return self.beta2
+            except AttributeError:
+                self.beta2 = pmodes_over(self, pp, blur=blur, ms=2, **kwargs)
+                return self.beta2
+        else:
+            return pmodes_over(self, pp, blur=blur, ms=m, **kwargs)
+
+    def pmode_product(self, m=2, blur=20, **kwargs):
+        """Return the PWP beta coefficient m of the image. See pmodes.py for details.
+        Since this is heavily blur-dependent, defaults to *adding* nominal beam blur
+        on top of the current image.
+        """
+        # Don't cache
+        return rex_and_pmodes(self, blur=blur, ms=m, return_product=True, **kwargs)
+
     def tauF_av(self):
         """Average full Faraday rotation angle across the image."""
         return np.mean(self.tauF)
@@ -248,8 +291,9 @@ class Image(object):
     # Image.get_t(particular_image)
     # So we can't always use members
     def get_name(self):
-        """Return image name.  All ``get_`` functions exist mostly for parallel calls,
-        which cannot take lambdas/members and thus must take class functions e.g. Image.get_name()"""
+        """Return image name.
+        For the times you can't use image.name or a lambda e.g. 'lambda im: im.name'
+        """
         return self.name
     def get_t(self):
         return self.t
