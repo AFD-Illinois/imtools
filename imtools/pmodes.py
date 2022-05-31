@@ -9,13 +9,17 @@ from ehtim.features import rex
 from ehtim.io.save import save_im_fits
 
 from .ehtim_compat import to_eht_im
+from . import io
 
-
-def get_rex_profile(im, blur=20, verbose=True):
+def get_rex_profile(im, blur=20, verbose=False):
     """Wrapper for the eht-imaging ring-extractor, "rex".
     Returns a ring 'Profile' object with the centered image and
     ring parameters.
     """
+
+    if isinstance(im, str):
+        im = io.read_image(im)
+
     # Rex wants a filename so it can do bad string things to it.
     # So we oblige by writing an image to /tmp, the least-worst place to do so
     # Other arg is "postprocdir," which is unused
@@ -46,6 +50,10 @@ def rex_and_pmodes(im, blur=20, ms=2, width_coeff=2, **kwargs):
     :returns a complex number representing the mode, with abs(p) ~ polarization degree in the mode,
                 and angle(p) representing average EVPA angle vs the mode
     """
+
+    if isinstance(im, str):
+        im = io.read_image(im)
+
     # Rex wants a filename so it can do bad string things to it.
     # So we oblige by writing an image to /tmp, the least-worst place to do so
     # Other arg is "postprocdir," which is unused
