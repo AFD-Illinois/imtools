@@ -18,16 +18,29 @@ def get_rex_profile(im, blur=20, verbose=False):
     """
 
     if isinstance(im, str):
-        im = io.read_image(im)
+        imname = im
+        im = io.read_image(imname)
+    else:
+        try:
+            imname = im.properties['fname']
+        except KeyError:
+            imname = ""
 
-    # Rex wants a filename so it can do bad string things to it.
-    # So we oblige by writing an image to /tmp, the least-worst place to do so
-    # Other arg is "postprocdir," which is unused
-    # We ensure we fail if it's written to for some reason
-    imname = "/tmp/"+str(uuid.uuid4())+".fits"
-    save_im_fits(to_eht_im(im), imname)
+    using_tmp = False
+    if not '.h5' in imname or '.fits' in imname:
+        # Rex always wants a filename so it can do bad string things to it.
+        # So if we only have an image, we oblige by writing an image to /tmp,
+        # the least-worst place to do so.
+        # The other arg is "postprocdir," which is unused
+        # We ensure we fail if it's written to for some reason
+        imname = "/tmp/"+str(uuid.uuid4())+".fits"
+        save_im_fits(to_eht_im(im), imname)
+        using_tmp = True
+
     pp = rex.FindProfileSingle(imname, "/", blur=blur)
-    os.remove(imname)
+
+    if using_tmp:
+        os.remove(imname)
 
     if verbose:
         im_center = (pp.x0, pp.y0)
@@ -50,19 +63,22 @@ def rex_and_pmodes(im, blur=20, ms=2, width_coeff=2, **kwargs):
     :returns a complex number representing the mode, with abs(p) ~ polarization degree in the mode,
                 and angle(p) representing average EVPA angle vs the mode
     """
-
+    # Take an image object or filename
     if isinstance(im, str):
         im = io.read_image(im)
 
-    # Rex wants a filename so it can do bad string things to it.
-    # So we oblige by writing an image to /tmp, the least-worst place to do so
-    # Other arg is "postprocdir," which is unused
-    # We ensure we fail if it's written to for some reason
     pp = get_rex_profile(im, blur)
-    return pmodes_over(im, pp, blur=blur, ms=ms, width_coeff=width_coeff, **kwargs)
+    diam = pp.RingSize1[0]
+    width = pp.RingWidth[0]
+    # Also translate width/coeff to rmin/max
+    minr = (diam - width_coeff*width) / 2
+    maxr = (diam + width_coeff*width) / 2 
+    return pmodes(pp.im_center, ms, r_min=minr, r_max=maxr, **kwargs)
 
 def pmodes_over(im, pp, blur=20, ms=2, width_coeff=2, **kwargs):
-    """Return PWP beta_m coefficients of an image, given a particular ring profile."""
+    """Return PWP beta_m coefficients of an image, given a particular ring profile.
+    ONLY used for sharing a ring profile between multiple images, otherwise see rex_and_pmodes
+    """
     # Take all the non-image properties from the centering profile pp
     im_center = (pp.x0, pp.y0)
     diam = pp.RingSize1[0]
