@@ -11,12 +11,20 @@ from ehtim.io.save import save_im_fits
 from .ehtim_compat import to_eht_im
 from . import io
 
-def get_rex_profile(im, blur=20, verbose=False):
+def get_rex_profile(im, blur=20, verbose=False, no_copy=False):
     """Wrapper for the eht-imaging ring-extractor, "rex".
     Returns a ring 'Profile' object with the centered image and
     ring parameters.
-    """
+    :param im: imtools-format image
+    :param blur: blur when computing ring extraction. Does *not* blur the original image,
+                 just the post-rex centered version included in the return object
+    :param verbose: print extracted ring parameters, to check for obviously bad fits
+    :param no_copy: don't write a new ehtim fits-format image when performing ring extraction.
+                Limits function to use with eht-imaging-readable images, with accessible files.
 
+    :returns an eht-imaging Profile object containing a centered image and various ring parameters.
+    """
+    # Take an image or filename, we need both
     if isinstance(im, str):
         imname = im
         im = io.read_image(imname)
@@ -27,7 +35,7 @@ def get_rex_profile(im, blur=20, verbose=False):
             imname = ""
 
     using_tmp = False
-    if not '.h5' in imname or '.fits' in imname:
+    if not no_copy:
         # Rex always wants a filename so it can do bad string things to it.
         # So if we only have an image, we oblige by writing an image to /tmp,
         # the least-worst place to do so.
@@ -50,7 +58,7 @@ def get_rex_profile(im, blur=20, verbose=False):
 
     return pp
 
-def rex_and_pmodes(im, blur=20, ms=2, width_coeff=2, **kwargs):
+def rex_and_pmodes(im, blur=20, ms=2, width_coeff=2, no_copy=False, **kwargs):
     """Return the PWP beta coefficient m of the image.
     This uses the ring extractor 'rex' from eht-imaging to find the ring center & width,
     then calculates the inner product with a set of basis functions representing patterns in EVPA
@@ -60,14 +68,12 @@ def rex_and_pmodes(im, blur=20, ms=2, width_coeff=2, **kwargs):
     :param blur: blur to be applied by this function in muas
     :param ms: coefficient or list of coefficients to calculate. You probably want m=2
     :param width_coeff: proportion of ring width considered to the rex value
+    :param no_copy: don't write a new ehtim fits-format image when performing ring extraction.
+                    Limits function to use with eht-imaging-readable images, with accessible files.
     :returns a complex number representing the mode, with abs(p) ~ polarization degree in the mode,
                 and angle(p) representing average EVPA angle vs the mode
     """
-    # Take an image object or filename
-    if isinstance(im, str):
-        im = io.read_image(im)
-
-    pp = get_rex_profile(im, blur)
+    pp = get_rex_profile(im, blur, no_copy=no_copy)
     diam = pp.RingSize1[0]
     width = pp.RingWidth[0]
     # Also translate width/coeff to rmin/max
@@ -77,7 +83,7 @@ def rex_and_pmodes(im, blur=20, ms=2, width_coeff=2, **kwargs):
 
 def pmodes_over(im, pp, blur=20, ms=2, width_coeff=2, **kwargs):
     """Return PWP beta_m coefficients of an image, given a particular ring profile.
-    ONLY used for sharing a ring profile between multiple images, otherwise see rex_and_pmodes
+    Use this to compute modes over many images which should share a single ring size/shape.
     """
     # Take all the non-image properties from the centering profile pp
     im_center = (pp.x0, pp.y0)
@@ -94,9 +100,9 @@ def pmodes_over(im, pp, blur=20, ms=2, width_coeff=2, **kwargs):
     return pmodes(im_centered, ms, r_min=minr, r_max=maxr, **kwargs)
 
 def pmodes(im, ms, r_min, r_max, norm_in_int=False, norm_with_StokesI=True, return_product=False):
-    """Return PWP beta_m coefficients over the given region of a centered image.
+    """Return PWP beta_m coefficients over the given region of a pre-centered image im.
     
-    :param im: image object from either ehtim or imtools
+    :param im: a centered image object from either ehtim or imtools
     :param ms: list of coefficients m to calculate, or single coefficient number e.g. 2
     :param r_min, r_max: radii within which to consider linearly polarized emission
     :param norm_in_int: normalize the sum *before* integrating, rather than after
