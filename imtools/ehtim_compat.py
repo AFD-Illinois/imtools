@@ -64,10 +64,10 @@ def to_eht_im(image):
     lunit = image.properties['units']['L_unit']    # in cm
     DX = image.properties['camera']['dx']          # in GM/c^2
     nx = image.properties['camera']['nx']          # width in pixels
-    time = image.properties['t'] * tunit / 3600.       # time in hours
+    time = image.properties['t'] * tunit / 3600.   # time in hours
 
-    # This works, I'm pretty sure ¯\_(ツ)_/¯
-    poldat = np.rot90(image.get_raw().transpose(1, 2, 0), 2)
+    # This works
+    poldat = image.get_raw().transpose(1, 2, 0)[::-1,:,:]
 
     # Make a guess at the source based on distance and optionally fall back on mass
     src = ehc.SOURCE_DEFAULT
