@@ -183,6 +183,16 @@ def final_pol_set(image1, image2, av_blur=20):
                     image2.lpfrac_av(blur=av_blur) - image1.lpfrac_av(blur=av_blur),
                     np.abs(image2.beta(2, blur=av_blur) - image1.beta(2, blur=av_blur))])
 
+def all_measurable_nocirc(image1, image2, av_blur=20):
+    """Return differences in all measurable image-integrated or averaged quantities
+    used for comparison in e.g. EHTC M87 PaperVIII, as used:
+    Flux, \Delta |m|_net, \Delta <|m|>, \Delta |v|_net, \Delta |\beta_2|", \Delta angle(\beta_2)
+    \Delta <|m|> and \Delta \beta_2 measurements use 20muas blur by default.
+    """
+    return np.array([(image2.flux() - image1.flux()) / image1.flux(),
+                    image2.lpfrac_int() - image1.lpfrac_int(),
+                    image2.lpfrac_av(blur=av_blur) - image1.lpfrac_av(blur=av_blur)])
+
 def all_measurable(image1, image2, av_blur=20):
     """Return differences in all measurable image-integrated or averaged quantities
     used for comparison in e.g. EHTC M87 PaperVIII, as used:
@@ -191,7 +201,7 @@ def all_measurable(image1, image2, av_blur=20):
     """
     im1_beta2 = image1.beta(2, blur=av_blur)
     im2_beta2 = image2.beta(2, blur=av_blur)
-    return np.array([image2.flux() - image1.flux(),
+    return np.array([(image2.flux() - image1.flux()) / image1.flux(),
                     image2.lpfrac_int() - image1.lpfrac_int(),
                     image2.lpfrac_av(blur=av_blur) - image1.lpfrac_av(blur=av_blur),
                     image2.cpfrac_int() - image1.cpfrac_int(),
