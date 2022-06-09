@@ -238,7 +238,11 @@ class Image(object):
         :param blur: gaussian FWHM blur to apply before calculating the value.
                      Set to 0 if image is already blurred.
         """
-        return np.sum(np.sqrt((self.Q * self.scale)**2 + (self.U * self.scale)**2)) / self.Itot()
+        if blur > 0:
+            lp_im = self.blurred(20)
+        else:
+            lp_im = self
+        return np.sum(np.sqrt((lp_im.Q * lp_im.scale)**2 + (lp_im.U * lp_im.scale)**2)) / lp_im.Itot()
     
     # beta modes are another reduction but not really a full average or image-int quantity
     def beta(self, m=2, blur=20, **kwargs):

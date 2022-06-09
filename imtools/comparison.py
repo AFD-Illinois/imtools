@@ -73,9 +73,9 @@ def generate_table(data, fn, n_returns, symmetric=False):
 
     table = np.zeros((nnames, nnames, n_returns))
     for i, codes in enumerate(all_combos):
-        table[names.index(codes[0]), names.index(codes[1]), :] = vals[i]
+        table[names.index(codes[0]), names.index(codes[1]), :] = vals[i][:n_returns]
         if symmetric:
-            table[names.index(codes[1]), names.index(codes[0]), :] = -vals[i]
+            table[names.index(codes[1]), names.index(codes[0]), :] = -vals[i][:n_returns]
 
     return table
 
