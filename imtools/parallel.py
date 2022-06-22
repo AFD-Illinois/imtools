@@ -42,6 +42,9 @@ _func = None
 
 __doc__ = \
 """Tools for running embarrassingly parallel operations using multiple processes.
+Basically makes multiprocessing more usable and adds conveniences like progress bars.
+You probably want map_parallel, which maps a function of your choice (defined or lambda)
+over a list or iterator, and returns the result.
 """
 
 def _worker_init(func):
