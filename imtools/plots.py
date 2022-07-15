@@ -34,6 +34,14 @@ __license__ = """
 
 import numpy as np
 
+# For square polar geodesic plots below
+import matplotlib.cbook as cbook
+from mpl_toolkits.axisartist import SubplotHost, ParasiteAxesAuxTrans
+from mpl_toolkits.axisartist.grid_helper_curvelinear import GridHelperCurveLinear
+import mpl_toolkits.axisartist.angle_helper as angle_helper
+from matplotlib.projections import PolarAxes
+from matplotlib.transforms import Affine2D
+
 import ehtplot.color
 
 __doc__ = \
@@ -360,3 +368,75 @@ def _colorbar(mappable, size="5%", pad=0.05):
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size=size, pad=pad)
     return fig.colorbar(mappable, cax=cax)
+
+def square_polar_axes(fig, grid_density=12, plot_eh=True, a=0.9375):
+    """Plot and grid using polar coordinates, but in a square frame. Properly angles ticks
+    and places labels around the frame, without resorting to a circular polar plot.
+
+    This function takes a Figure and returns a pair of Axes objects (not exactly
+    matplotlib.Axes, but close).  You can plot in polar coordinates on ax2 or Cartesian on ax1.
+    Add Cartesian ticks with ax.secondary_xaxis or ax.secondary_yaxis.
+
+    This is stolen from someone stealing from matplotlib's curvilinear coordinates example:
+    https://stackoverflow.com/questions/49096370/polar-grid-on-left-hand-side-of-rectangular-plot
+
+    :param fig: matplotlib figure object to use
+    :param grid_density: rough estimate of the number of grid lines.  12 is ~30 degree resolution
+    :return ax, ax2 axes representing Cartesian and polar views of the same plot area, added to 'fig'.
+    """
+
+    # PolarAxes.PolarTransform takes radians. However, we want our coordinate
+    # system in degrees
+    tr = Affine2D().scale(np.pi/180., 1.) + PolarAxes.PolarTransform()
+
+    # 20, 20 : number of sampling points along x, y direction
+    extreme_finder = angle_helper.ExtremeFinderCycle(20, 20,
+                                                    lon_cycle=360,
+                                                    lat_cycle=None,
+                                                    lon_minmax=None,
+                                                    lat_minmax=(0, np.inf),)
+
+    # Find a grid values appropriate for the coordinate (degree,
+    # minute, second). The argument is a approximate number of grids.
+    grid_locator1 = angle_helper.LocatorDMS(grid_density)
+    tick_formatter1 = angle_helper.FormatterDMS()
+    grid_helper = GridHelperCurveLinear(tr,
+                                        extreme_finder=extreme_finder,
+                                        grid_locator1=grid_locator1,
+                                        tick_formatter1=tick_formatter1
+                                        )
+
+    fig.clf()
+    ax = SubplotHost(fig, 1, 1, 1, grid_helper=grid_helper)
+
+    # make ticklabels of right invisible, and top axis visible.
+    ax.axis["right"].major_ticklabels.set_visible(False)
+    ax.axis["right"].major_ticks.set_visible(False)
+    ax.axis["top"].major_ticklabels.set_visible(True)
+
+    ax.axis["left"].major_ticklabels.set_visible(False)
+    ax.axis["left"].major_ticks.set_visible(False)
+
+    # let left axis shows ticklabels for 1st coordinate (angle)
+    ax.axis["left"].get_helper().nth_coord_ticks = 0
+    # let bottom axis shows ticklabels for 2nd coordinate (radius)
+    ax.axis["bottom"].get_helper().nth_coord_ticks = 1
+
+    #ax.axis["left"].major_ticklabels.set_visible(False)
+
+    fig.add_subplot(ax)
+
+    ## A parasite axes with given transform
+    ## This is the axes to plot the data to.
+    ax2 = ParasiteAxesAuxTrans(ax, tr) #, "equal")
+    ## note that ax2.transData == tr + ax1.transData
+    ## Anything you draw in ax2 will match the ticks and grids of ax1.
+    ax.parasites.append(ax2)
+    ax.set_aspect('equal')
+    ax.grid(True, zorder=0)
+
+    # This is dumb to figure out, make it an option.
+    if plot_eh:
+        ax2.fill_between(np.linspace(0,360,100), 1 + np.sqrt(1 - a**2)*np.ones(100), color='k', zorder=1e6)
+
+    return ax, ax2

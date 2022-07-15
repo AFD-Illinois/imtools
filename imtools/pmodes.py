@@ -99,7 +99,7 @@ def pmodes_over(im, pp, blur=20, ms=2, width_coeff=2, **kwargs):
     maxr = (diam + width_coeff*width) / 2 
     return pmodes(im_centered, ms, r_min=minr, r_max=maxr, **kwargs)
 
-def pmodes(im, ms, r_min, r_max, norm_in_int=False, norm_with_StokesI=True, return_product=False):
+def pmodes(im, ms, r_min, r_max, norm_in_int=False, norm_with_StokesI=True, verbose=False):
     """Return PWP beta_m coefficients over the given region of a pre-centered image im.
     
     :param im: a centered image object from either ehtim or imtools
@@ -107,7 +107,7 @@ def pmodes(im, ms, r_min, r_max, norm_in_int=False, norm_with_StokesI=True, retu
     :param r_min, r_max: radii within which to consider linearly polarized emission
     :param norm_in_int: normalize the sum *before* integrating, rather than after
     :param norm_with_StokesI: normalize to *all* emission, rather than just total polarized emission
-    :param return_product: instead of summing to find the coefficient value, return the integrand P*exp(i m phi)
+    :param verbose: print various intermediate values
     """
 
     # Accept single coefficients
@@ -170,8 +170,6 @@ def pmodes(im, ms, r_min, r_max, norm_in_int=False, norm_with_StokesI=True, retu
             coeff /= npix
         else:
             prod = parr * pbasis
-            if return_product:
-                return prod
             coeff = prod[annulus].sum()
             if norm_with_StokesI:
                 #print("npix: {} Pann: {}".format(npix, Pann))
@@ -180,6 +178,10 @@ def pmodes(im, ms, r_min, r_max, norm_in_int=False, norm_with_StokesI=True, retu
             else:
                 coeff /= Pann
             betas.append(coeff)
+
+    if verbose:
+        print("npix: {} Pann: {}".format(npix, Pann))
+        print("beta_2 integral: {} total annulus emission: {}".format(coeff, Iann))
 
     if len(betas) == 1:
         return betas[0]
