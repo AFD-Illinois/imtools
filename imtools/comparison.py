@@ -79,24 +79,20 @@ def generate_table(data, fn, n_returns, symmetric=False):
 
     return table
 
-def table_color_plot(table, names, cmap='RdBu_r', n_tables=4, figsize=(14,4),
+def table_color_plot(table, names, figsize, cmap='RdBu_r', n_tables=4,
                     labels=("Stokes I", "Stokes Q", "Stokes U", "Stokes V"),
                     clabels=("%", "%", "%", "%"),
-                    is_percent=(True, True, True, True), polar=False, vmax=None, shrink_text_by=2.5,
+                    is_percent=(True, True, True, True), vmax=None, shrink_text_by=2.5,
                     upper_tri_only=True):
     """Plot a 2D array indexed by the list 'names' on each axis.
     Usually for plotting output of generate_table for comparisons
     """
     names = list(names)
-    nnames = len(names)
-    if n_tables == 4:
-        fig, ax = plt.subplots(2, 2, figsize=(8, 3.5))
-        ax = ax.flatten()
-    elif n_tables == 6:
-        fig, ax = plt.subplots(2, 3, figsize=(10, 3.5))
-        ax = ax.flatten()
+    if n_tables < 4:
+        fig, _ = plt.subplots(1, n_tables, figsize=figsize)
     else:
-        fig, ax = plt.subplots(1, n_tables, figsize=figsize)
+        fig, _ = plt.subplots(n_tables//2, 2, figsize=figsize)
+    ax = fig.get_axes()
 
     if isinstance(cmap, str):
         cmap = (cmap,)*n_tables
@@ -121,10 +117,10 @@ def table_color_plot(table, names, cmap='RdBu_r', n_tables=4, figsize=(14,4),
                 col_labels = [""]*len(names)
         elif n_tables == 6:
             # Quash rows except left side
-            if i_table not in (0, 3):
+            if i_table not in (0, 2, 4):
                 row_labels = [""]*len(names)
             # Quash cols on bottom row
-            if i_table not in (0, 1, 2):
+            if i_table not in (0, 1):
                 col_labels = [""]*len(names)
         elif i_table != 0: # For plots arranged in a line
                 row_labels = [""]*len(names)
