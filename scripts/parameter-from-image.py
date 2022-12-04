@@ -58,6 +58,11 @@ else:
 print("xoff {}".format(f['/header/camera/xoff'][()]))
 print("yoff {}".format(f['/header/camera/yoff'][()]))
 
+try:
+	print("reverse_field {}".format(f['/header/field_config'][()]))
+except KeyError:
+	pass
+
 # TODO replicate non-physical parameters optionally?
 #add_ppm 0
 #quench_output 0
