@@ -35,12 +35,15 @@ __license__ = """
 import numpy as np
 
 # For square polar geodesic plots below
-import matplotlib.cbook as cbook
-from mpl_toolkits.axisartist import SubplotHost, ParasiteAxesAuxTrans
-from mpl_toolkits.axisartist.grid_helper_curvelinear import GridHelperCurveLinear
-import mpl_toolkits.axisartist.angle_helper as angle_helper
-from matplotlib.projections import PolarAxes
-from matplotlib.transforms import Affine2D
+try:
+    import matplotlib.cbook as cbook
+    from mpl_toolkits.axisartist import SubplotHost, ParasiteAxesAuxTrans
+    from mpl_toolkits.axisartist.grid_helper_curvelinear import GridHelperCurveLinear
+    import mpl_toolkits.axisartist.angle_helper as angle_helper
+    from matplotlib.projections import PolarAxes
+    from matplotlib.transforms import Affine2D
+except:
+    print("Warning: cannot import ParasiteAxes! Square polar plots are not available!")
 
 import ehtplot.color
 

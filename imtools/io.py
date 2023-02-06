@@ -176,6 +176,7 @@ def read_image(fname, name=None, load_fluid_header=False, parameters={}, format_
             ImRes = int(np.sqrt(infile['ivals'].shape[1]))
             pol_data = infile['ivals'][:,:,0].reshape(4,ImRes,ImRes).transpose(2,1,0)
             # Correct the Q,U convention
+            #print("Reversing grtrans")
             pol_data[:,:,1] *= -1
             pol_data[:,:,2] *= -1
         except KeyError:
