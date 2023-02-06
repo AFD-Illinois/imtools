@@ -71,141 +71,62 @@ def generate_table(data, fn, n_returns, symmetric=False):
 
     vals = map_parallel(run_fn, all_combos)
 
-    table = np.zeros((nnames, nnames, n_returns))
-    for i, codes in enumerate(all_combos):
-        table[names.index(codes[0]), names.index(codes[1]), :] = vals[i][:n_returns]
-        if symmetric:
-            table[names.index(codes[1]), names.index(codes[0]), :] = -vals[i][:n_returns]
+    if n_returns == 1:
+        table = np.zeros((nnames, nnames))
+        for i, codes in enumerate(all_combos):
+            table[names.index(codes[0]), names.index(codes[1])] = vals[i]
+            if symmetric:
+                table[names.index(codes[1]), names.index(codes[0])] = -vals[i]
+    else:
+        table = np.zeros((nnames, nnames, n_returns))
+        for i, codes in enumerate(all_combos):
+            table[names.index(codes[0]), names.index(codes[1]), :] = vals[i][:n_returns]
+            if symmetric:
+                table[names.index(codes[1]), names.index(codes[0]), :] = -vals[i][:n_returns]
 
     return table
 
-def table_color_plot(table, names, figsize, cmap='RdBu_r', n_tables=4,
-                    labels=("Stokes I", "Stokes Q", "Stokes U", "Stokes V"),
-                    clabels=("%", "%", "%", "%"),
-                    is_percent=(True, True, True, True), vmax=None, shrink_text_by=2.5,
-                    upper_tri_only=True):
+def table_color_plot(table, ax, code_names, cmap='RdBu_r',
+                    label="", clabel=(" "), is_percent=True, vmax=None,
+                    shrink_text_by=2.5, upper_tri_only=True):
     """Plot a 2D array indexed by the list 'names' on each axis.
     Usually for plotting output of generate_table for comparisons
     """
-    names = list(names)
-    if n_tables < 4:
-        fig, _ = plt.subplots(1, n_tables, figsize=figsize)
-    else:
-        fig, _ = plt.subplots(n_tables//2, 2, figsize=figsize)
-    ax = fig.get_axes()
+    names = list(code_names)
 
-    if isinstance(cmap, str):
-        cmap = (cmap,)*n_tables
-
-    for i_table,label in enumerate(labels[:n_tables]):
-        if vmax is None:
-            lvmax = np.max(np.abs(table[:, :, i_table] * (1,100)[is_percent[i_table]]))
-        else:
-            lvmax = vmax[i_table]
-
-        if cmap[i_table] == 'RdBu_r' or cmap[i_table] == 'bwr':
-            lvmin = -lvmax
-        else:
-            lvmin = 0
-
-        row_labels = names
-        col_labels = names
-        if n_tables == 4:
-            if i_table == 1 or i_table == 3:
-                row_labels = [""]*len(names)
-            if i_table == 2 or i_table == 3:
-                col_labels = [""]*len(names)
-        elif n_tables == 6:
-            # Quash rows except left side
-            if i_table not in (0, 2, 4):
-                row_labels = [""]*len(names)
-            # Quash cols on bottom row
-            if i_table not in (0, 1):
-                col_labels = [""]*len(names)
-        elif i_table != 0: # For plots arranged in a line
-                row_labels = [""]*len(names)
-
-        if upper_tri_only:
-            # Zero table elements below and on the diagonal
-            for tab_i in range(table.shape[0]):
-                for tab_j in range(table.shape[1]):
-                    if tab_i >= tab_j:
-                        table[tab_i, tab_j, :] = 0
-            # Take out first column and last row of labels and table
-            row_labels = row_labels[:-1]
-            col_labels = col_labels[1:]
-            table_vals = table[:-1, 1:, i_table]*(1,100)[is_percent[i_table]]
-        else:
-            table_vals = table[:, :, i_table]*(1,100)[is_percent[i_table]]
-
-        im, cbar = _heatmap(table_vals, row_labels, col_labels, ax=ax[i_table],
-                            cmap=cmap[i_table], cbarlabel=clabels[i_table], vmax=lvmax, vmin=lvmin, aspect='auto')
-        _annotate_heatmap(im, valfmt=("{x:.2g}", "{x:.2f}%")[is_percent[i_table]], threshold=lvmax/2,
-                          shrink_text_by=shrink_text_by)
-        ax[i_table].set_title(label, pad=20)
-
-    plt.subplots_adjust(hspace=0.3)
-    plt.tight_layout()
-    return fig
-
-def table_interleave_plot(table, names, cmap='RdBu_r', vmax=None, n_stokes=4, figsize=(8,5), cbarlabel=""):
-    """Plot a 2D array indexed by the list 'names' on each axis.
-    Usually for plotting output of generate_table for comparisons
-    """
-    names = list(names)
-    nnames = len(names)
-    fig, ax = plt.subplots(1, 1, figsize=figsize)
     if vmax is None:
-        vmax = np.max(np.abs(100 * table))
-    if cmap == 'RdBu_r' or cmap == 'bwr':
-        vmin = -vmax
+        lvmax = np.max(np.abs(table[:, :] * (1,100)[is_percent]))
     else:
-        vmin = 0
+        lvmax = vmax
 
-    table2 = np.zeros((table.shape[0], table.shape[1]*n_stokes))
-    for i in range(table.shape[0]):
-        for j in range(table.shape[1]):
-            for s in range(n_stokes):
-                table2[i,n_stokes*j+s] = table[i,j,s]
-
-    inames = [(names[i//n_stokes]+" " if i % n_stokes == 0 else "") + (["I","Q","U","V"][i%n_stokes]) for i in range(nnames*n_stokes)]
-    im, cbar = _heatmap(table2*100, names, inames, ax=ax, cmap=cmap, cbar_kw={'size': "2%", 'pad': 0.02}, cbarlabel=cbarlabel, vmax=vmax, vmin=vmin)
-    for i in range(1, nnames):
-        ax.axvline(i * n_stokes - 0.5, ymin=0, ymax=nnames, color='k')
-        ax.axhline(i - 0.5, xmin=0, xmax=nnames * n_stokes, color='k')
-    _annotate_heatmap(im, valfmt="{x:.1f}%", threshold=vmax/2)
-    fig.tight_layout()
-    return fig
-
-def table_interleave_plot_rotated(table, names, cmap='RdBu_r', vmax=None, n_stokes=4, figsize=(8,5), cbarlabel=""):
-    """Plot a 2D array indexed by the list 'names' on each axis.
-    Usually for plotting output of generate_table for comparisons
-    """
-    names = list(names)
-    nnames = len(names)
-    fig, ax = plt.subplots(1, 1, figsize=figsize)
-    if vmax is None:
-        vmax = np.max(np.abs(100 * table))
-    if cmap == 'RdBu_r' or cmap == 'bwr':
-        vmin = -vmax
+    if cmap in ['RdBu_r', 'bwr']: # TODO detection?
+        lvmin = -lvmax
     else:
-        vmin = 0
+        lvmin = 0
 
-    table2 = np.zeros((table.shape[0]*n_stokes, table.shape[1]))
-    for i in range(table.shape[0]):
-        for j in range(table.shape[1]):
-            for s in range(n_stokes):
-                table2[n_stokes*i+s,j] = table[i,j,s]
+    row_labels = names
+    col_labels = names
 
-    inames = [(names[i//n_stokes]+" " if i % n_stokes == 0 else "") + (["I","Q","U","V"][i%n_stokes]) for i in range(nnames*n_stokes)]
-    im, cbar = _heatmap(table2*100, inames, names, ax=ax, cmap=cmap, cbar_kw={'size': "2%", 'pad': 0.02}, cbarlabel=cbarlabel, vmax=vmax, vmin=vmin)
-    for i in range(1, nnames):
-        ax.axhline(i * n_stokes - 0.5, xmin=0, xmax=nnames, color='k')
-        ax.axvline(i - 0.5, ymin=0, ymax=nnames * n_stokes, color='k')
-    _annotate_heatmap(im, valfmt="{x:.1f}%", threshold=vmax/2)
-    return fig
+    if upper_tri_only:
+        # Zero table elements below and on the diagonal
+        for tab_i in range(table.shape[0]):
+            for tab_j in range(table.shape[1]):
+                if tab_i >= tab_j:
+                    table[tab_i, tab_j] = 0
+        # Take out first column and last row of labels and table
+        row_labels = row_labels[:-1]
+        col_labels = col_labels[1:]
+        table_vals = table[:-1, 1:]*(1,100)[is_percent]
+    else:
+        table_vals = table[:, :]*(1,100)[is_percent]
 
-def print_table(table, names, color=False, cmap='RdBu_r', n_stokes=4, figsize=(6, 10)):
+    im, cbar = _heatmap(table_vals, row_labels, col_labels, ax=ax,
+                        cmap=cmap, cbarlabel=clabel, vmax=lvmax, vmin=lvmin, aspect='auto')
+    _annotate_heatmap(im, valfmt=("{x:.2g}", "{x:.2f}%")[is_percent], threshold=lvmax/2,
+                        shrink_text_by=shrink_text_by)
+    ax.set_title(label, pad=20)
+
+def print_table(table, names, cmap='RdBu_r', n_stokes=4, figsize=(6, 10)):
     """Make a table from a 2D array indexed by the list 'names' on each axis.
     Usually for showing output of generate_table for comparisons
     """
