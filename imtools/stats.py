@@ -44,6 +44,7 @@ def mle(var1, var2):
     """Mean "Linear" error (normalized L1 norm)
     Follows GRRT paper definition in dividing by the sum(var) of *first* image
     """
+    #print(type(var1))
     norm = np.sum(np.abs(var1))
     # Avoid dividing by 0
     if norm == 0:
@@ -54,10 +55,10 @@ def mles(image1, image2):
     """MSE of this image vs animage2.
     Follows GRRT paper definition in dividing by the sum(var) of *first* image
     """
-    return np.array([mle(image1.I * image1.scale, image2.I * image2.scale),
-                    mle(image1.Q * image1.scale, image2.Q * image2.scale),
-                    mle(image1.U * image1.scale, image2.U * image2.scale),
-                    mle(image1.V * image1.scale, image2.V * image2.scale)])
+    return np.array([mle(image1.I, image2.I),
+                    mle(image1.Q, image2.Q),
+                    mle(image1.U, image2.U),
+                    mle(image1.V, image2.V)])
 
 def mse(var1, var2):
     """MSE between images.
@@ -71,10 +72,10 @@ def mse(var1, var2):
 
 def mses(image1, image2):
     """MSE for each variable."""
-    return np.array([mse(image1.I * image1.scale, image2.I * image2.scale),
-                    mse(image1.Q * image1.scale, image2.Q * image2.scale),
-                    mse(image1.U * image1.scale, image2.U * image2.scale),
-                    mse(image1.V * image1.scale, image2.V * image2.scale)])
+    return np.array([mse(image1.I, image2.I),
+                    mse(image1.Q, image2.Q),
+                    mse(image1.U, image2.U),
+                    mse(image1.V, image2.V)])
 
 def ssim(var1, var2):
     """Image structural similarity SSIM as defined in Gold et. al, eq. 14"""
@@ -88,10 +89,10 @@ def ssim(var1, var2):
 
 def ssims(image1, image2):
     """SSIM for each variable"""
-    return np.array([ssim(image1.I * image1.scale, image2.I * image2.scale),
-                    ssim(image1.Q * image1.scale, image2.Q * image2.scale),
-                    ssim(image1.U * image1.scale, image2.U * image2.scale),
-                    ssim(image1.V * image1.scale, image2.V * image2.scale)])
+    return np.array([ssim(image1.I, image2.I),
+                    ssim(image1.Q, image2.Q),
+                    ssim(image1.U, image2.U),
+                    ssim(image1.V, image2.V)])
 
 def dssim(var1, var2):
     """Image dissimilarity DSSIM is 1/abs(SSIM) - 1"""
@@ -103,10 +104,10 @@ def dssim(var1, var2):
 
 def dssims(image1, image2):
     """DSSIM for each variable"""
-    return np.array([dssim(image1.I * image1.scale, image2.I * image2.scale),
-                    dssim(image1.Q * image1.scale, image2.Q * image2.scale),
-                    dssim(image1.U * image1.scale, image2.U * image2.scale),
-                    dssim(image1.V * image1.scale, image2.V * image2.scale)])
+    return np.array([dssim(image1.I, image2.I),
+                    dssim(image1.Q, image2.Q),
+                    dssim(image1.U, image2.U),
+                    dssim(image1.V, image2.V)])
 
 def zncc(var1, var2):
     """Zero-Normalized Cross-Correlation ZNCC
@@ -121,10 +122,10 @@ def zncc(var1, var2):
 
 def znccs(image1, image2):
     """ZNCC for each variable"""
-    return np.array([zncc(image1.I * image1.scale, image2.I * image2.scale),
-                    zncc(image1.Q * image1.scale, image2.Q * image2.scale),
-                    zncc(image1.U * image1.scale, image2.U * image2.scale),
-                    zncc(image1.V * image1.scale, image2.V * image2.scale)])
+    return np.array([zncc(image1.I, image2.I),
+                    zncc(image1.Q, image2.Q),
+                    zncc(image1.U, image2.U),
+                    zncc(image1.V, image2.V)])
 
 def ncc(var1, var2):
     """Normalized Cross-Correlation NCC
@@ -137,10 +138,10 @@ def ncc(var1, var2):
 
 def nccs(image1, image2):
     """NCC for each variable"""
-    return np.array([ncc(image1.I * image1.scale, image2.I * image2.scale),
-                    ncc(image1.Q * image1.scale, image2.Q * image2.scale),
-                    ncc(image1.U * image1.scale, image2.U * image2.scale),
-                    ncc(image1.V * image1.scale, image2.V * image2.scale)])
+    return np.array([ncc(image1.I, image2.I),
+                    ncc(image1.Q, image2.Q),
+                    ncc(image1.U, image2.U),
+                    ncc(image1.V, image2.V)])
 
 def rel_integrated(var1, var2):
     """Relative difference of the sum of a variable"""
@@ -148,10 +149,10 @@ def rel_integrated(var1, var2):
 
 def rels_integrated(image1, image2):
     """Integrated relative errors for each variable"""
-    return np.array([rel_integrated(image1.I * image1.scale, image2.I * image2.scale),
-                    rel_integrated(image1.Q * image1.scale, image2.Q * image2.scale),
-                    rel_integrated(image1.U * image1.scale, image2.U * image2.scale),
-                    rel_integrated(image1.V * image1.scale, image2.V * image2.scale)])
+    return np.array([rel_integrated(image1.I, image2.I),
+                    rel_integrated(image1.Q, image2.Q),
+                    rel_integrated(image1.U, image2.U),
+                    rel_integrated(image1.V, image2.V)])
 
 def polar_rels_integrated(image1, image2):
     """Relative differences in the total flux, integrated & averaged
@@ -159,7 +160,7 @@ def polar_rels_integrated(image1, image2):
     (That is, a "polar" breakdown with magnitudes instead of a "Cartesian"
     breakdown with Stokes Parameters)
     """
-    return np.array([rel_integrated(image1.I * image1.scale, image2.I * image2.scale),
+    return np.array([rel_integrated(image1.I, image2.I),
                     image2.lpfrac_int() / image1.lpfrac_int() - 1,
                     image2.lpfrac_av() / image1.lpfrac_av() - 1,
                     image2.cpfrac_int() / image1.cpfrac_int() - 1])
