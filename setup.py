@@ -100,6 +100,6 @@ setup(name="imtools",
           "ehtim"
           ],
 
-      author="Ben Prather",
+      author="Cora Prather",
       packages=find_packages(),
       )
