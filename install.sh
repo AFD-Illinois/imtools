@@ -4,6 +4,7 @@ git submodule update --recursive --init
 
 # Colors, array plots
 cd external/ehtplot
+git apply --quiet ../patches/ehtplot-*.patch
 pip install -e .
 cd ../..
 

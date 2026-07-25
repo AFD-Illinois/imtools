@@ -1,0 +1,37 @@
+diff --git a/ehtplot/color/core.py b/ehtplot/color/core.py
+index a0cd927..fd27b07 100644
+--- a/ehtplot/color/core.py
++++ b/ehtplot/color/core.py
+@@ -19,7 +19,7 @@
+ from __future__ import absolute_import
+ 
+ from matplotlib.colors import ListedColormap
+-from matplotlib.cm     import register_cmap
++from matplotlib.pyplot import colormaps
+ 
+ from ehtplot.color.ctab import list_ctab, load_ctab
+ 
+@@ -39,8 +39,8 @@ def register(name=None, cmap=None, path=None):
+             cmap = ListedColormap(load_ctab(name, path=path))
+ 
+         # Register the colormap
+-        register_cmap(name=name, cmap=cmap)
++        colormaps.register(name=name, cmap=cmap)
+ 
+         # Register the reversed colormap
+-        register_cmap(name=name + ("_r" if unmodified(name) else "r"),
++        colormaps.register(name=name + ("_r" if unmodified(name) else "r"),
+                       cmap=cmap.reversed())
+diff --git a/ehtplot/color/ctab.py b/ehtplot/color/ctab.py
+index d8bbfc2..bbab16d 100644
+--- a/ehtplot/color/ctab.py
++++ b/ehtplot/color/ctab.py
+@@ -24,7 +24,7 @@ from glob    import glob
+ 
+ import numpy as np
+ from matplotlib.colors import Colormap
+-from matplotlib.cm     import get_cmap
++from matplotlib.pyplot import get_cmap
+ 
+ Nc  = 1024 # nubber of quantization levels in a channel (10bit default)
+ ext = ".ctab"
