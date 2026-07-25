@@ -35,7 +35,7 @@ def plot(fnames, simple, unpol, fig_x, fig_y, fig_dpi, overlay, n_ticks):
         if fname[-3:] != ".h5": continue
         print("plotting {0:s}".format(fname))
 
-        image = read_image(fname)
+        image = read_image(fname, only_unpolarized=unpol)
 
         # create plots
         if simple:

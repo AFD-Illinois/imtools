@@ -99,8 +99,8 @@ def read_image(fname, name=None, load_fluid_header=False, parameters={}, format_
         if fname[-3:] == ".h5":
             try:
                 infile = h5py.File(fname, "r")
-            except IOError:
-                print("Couldn't read file: ", fname)
+            except IOError as e:
+                print(f"Couldn't read file {fname}: {e}")
                 return None
             if 'header' in infile:
                 ftype = "ipole_h5"
@@ -153,11 +153,12 @@ def read_image(fname, name=None, load_fluid_header=False, parameters={}, format_
 
     if ftype == "ipole_h5":
         try:
-            pol_data = infile['pol'][:,:,:4].transpose(1,0,2)
-            unpol_data = infile['unpol'][()].T
-            tauF = infile['pol'][:,:,4].T
-            tau = infile['tau'][()].T
             header = hdf5_to_dict(infile['header'])
+            unpol_data = np.clip(np.nan_to_num(infile['unpol'][()].T, nan=0., posinf=0., neginf=0.), 0., 1000)
+            tau = infile['tau'][()].T
+            if not only_use_unpol:
+                pol_data = infile['pol'][:,:,:4].transpose(1,0,2)
+                tauF = infile['pol'][:,:,4].T
             if load_fluid_header:
                 header.update(hdf5_to_dict(infile['fluid_header']))
             for key in infile.keys():

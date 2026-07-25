@@ -4,9 +4,14 @@ import uuid
 import h5py
 import numpy as np
 
-import ehtim as eh
-from ehtim.features import rex
-from ehtim.io.save import save_im_fits
+have_ehtim = True
+try:
+    import ehtim as eh
+    from ehtim.features import rex
+    from ehtim.io.save import save_im_fits
+except ModuleNotFoundError:
+    print("Couldn't import ehtim.  Compatibility & some plots disabled.")
+    have_ehtim = False
 
 from .ehtim_compat import to_eht_im
 from . import io
@@ -34,21 +39,23 @@ def get_rex_profile(im, blur=20, verbose=False, no_copy=False):
         except KeyError:
             imname = ""
 
-    using_tmp = False
-    if not no_copy:
-        # Rex always wants a filename so it can do bad string things to it.
-        # So if we only have an image, we oblige by writing an image to /tmp,
-        # the least-worst place to do so.
-        # The other arg is "postprocdir," which is unused
-        # We ensure we fail if it's written to for some reason
-        imname = "/tmp/"+str(uuid.uuid4())+".fits"
-        save_im_fits(to_eht_im(im), imname)
-        using_tmp = True
+    # using_tmp = False
+    # if not no_copy:
+    #     # Rex always wants a filename so it can do bad string things to it.
+    #     # So if we only have an image, we oblige by writing an image to /tmp,
+    #     # the least-worst place to do so.
+    #     # The other arg is "postprocdir," which is unused
+    #     # We ensure we fail if it's written to for some reason
+    #     print("Saving FITS image", file=sys.stderr)
+    #     imname = "/tmp/"+str(uuid.uuid4())+".fits"
+    #     save_im_fits(to_eht_im(im), imname)
+    #     using_tmp = True
+    #     print("Saved FITS image", file=sys.stderr)
 
-    pp = rex.FindProfileSingle(imname, "/", blur=blur)
+    pp = rex.FindProfile(to_eht_im(im), blur=blur)
 
-    if using_tmp:
-        os.remove(imname)
+    # if using_tmp:
+    #     os.remove(imname)
 
     if verbose:
         im_center = (pp.x0, pp.y0)

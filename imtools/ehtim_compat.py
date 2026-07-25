@@ -34,13 +34,13 @@ __license__ = """
 
 import numpy as np
 
-have_ehtim = False
+have_ehtim = True
 try:
     import ehtim
     import ehtim.const_def as ehc
 except ModuleNotFoundError:
     print("Couldn't import ehtim.  Compatibility & some plots disabled.")
-    have_ehtim = True
+    have_ehtim = False
 
 """Conversions between "Image" objects in this library and "Image" objects in
 `eht-imaging <https://github.com/achael/eht-imaging>`_.

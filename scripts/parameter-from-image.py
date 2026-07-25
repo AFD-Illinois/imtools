@@ -11,8 +11,6 @@
 import sys
 import h5py
 
-f = h5py.File(sys.argv[1], "r")
-
 cgs = {
     'CL': 2.99792458e10,
     'GNEWT': 6.6742e-8,
@@ -20,51 +18,54 @@ cgs = {
     'MSOLAR': 1.989e33
 }
 
-print("rcam {}".format(f['/header/camera/rcam'][()]))
-print("thetacam {}".format(f['/header/camera/thetacam'][()]))
-print("phicam {}".format(f['/header/camera/phicam'][()]))
-print("rotcam {}".format(f['/header/camera/rotcam'][()]))
+for filename in sys.argv[1:]:
+    with h5py.File(filename, "r") as f:
 
-print("nx {}".format(f['/header/camera/nx'][()]))
-print("ny {}".format(f['/header/camera/ny'][()]))
+        print("rcam {}".format(f['/header/camera/rcam'][()]))
+        print("thetacam {}".format(f['/header/camera/thetacam'][()]))
+        print("phicam {}".format(f['/header/camera/phicam'][()]))
+        print("rotcam {}".format(f['/header/camera/rotcam'][()]))
 
-print("dsource {:g}".format(f['/header/dsource'][()]/cgs['PC']))
+        print("nx {}".format(f['/header/camera/nx'][()]))
+        print("ny {}".format(f['/header/camera/ny'][()]))
 
-print("fovx_dsource {}".format(f['/header/camera/fovx_dsource'][()]))
-print("fovy_dsource {}".format(f['/header/camera/fovy_dsource'][()]))
+        print("dsource {:g}".format(f['/header/dsource'][()]/cgs['PC']))
 
-print("freqcgs {:g}".format(f['/header/freqcgs'][()]))
+        print("fovx_dsource {}".format(f['/header/camera/fovx_dsource'][()]))
+        print("fovy_dsource {}".format(f['/header/camera/fovy_dsource'][()]))
 
-print("MBH {:g}".format(f['/header/units/L_unit'][()]*cgs['CL']**2/cgs['GNEWT']/cgs['MSOLAR']))
+        print("freqcgs {:g}".format(f['/header/freqcgs'][()]))
 
-print("M_unit {}".format(f['/header/units/M_unit'][()]))
+        print("MBH {:g}".format(f['/header/units/L_unit'][()]*cgs['CL']**2/cgs['GNEWT']/cgs['MSOLAR']))
 
-if f['/header/electrons/type'][()] == 1:
-    print("tp_over_te {}".format(f['/header/electrons/tp_over_te'][()]))
-elif f['/header/electrons/type'][()] == 2:
-    print("trat_small {}".format(f['/header/electrons/rlow'][()]))
-    print("trat_large {}".format(f['/header/electrons/rhigh'][()]))
+        print("M_unit {}".format(f['/header/units/M_unit'][()]))
 
-# TODO counterjet seems like an important thing to record...
-#print("counterjet {}".format())
+        if f['/header/electrons/type'][()] == 1:
+            print("tp_over_te {}".format(f['/header/electrons/tp_over_te'][()]))
+        elif f['/header/electrons/type'][()] == 2:
+            print("trat_small {}".format(f['/header/electrons/rlow'][()]))
+            print("trat_large {}".format(f['/header/electrons/rhigh'][()]))
 
-if f['/header/evpa_0'][()] == b'N':
-    print("qu_conv {}".format(0))
-elif f['/header/evpa_0'][()] == b'W':
-    print("qu_conv {}".format(1))
-else:
-    print("Unrecognized Q,U convention! Not specifying in parameter file!", file=sys.stderr)
+        # TODO counterjet seems like an important thing to record...
+        #print("counterjet {}".format())
 
-print("xoff {}".format(f['/header/camera/xoff'][()]))
-print("yoff {}".format(f['/header/camera/yoff'][()]))
+        if f['/header/evpa_0'][()] == b'N':
+            print("qu_conv {}".format(0))
+        elif f['/header/evpa_0'][()] == b'W':
+            print("qu_conv {}".format(1))
+        else:
+            print("Unrecognized Q,U convention! Not specifying in parameter file!", file=sys.stderr)
 
-try:
-	print("reverse_field {}".format(f['/header/field_config'][()]))
-except KeyError:
-	pass
+        print("xoff {}".format(f['/header/camera/xoff'][()]))
+        print("yoff {}".format(f['/header/camera/yoff'][()]))
 
-# TODO replicate non-physical parameters optionally?
-#add_ppm 0
-#quench_output 0
-#only_unpolarized 0
-#trace parameters
+        try:
+            print("reverse_field {}".format(f['/header/field_config'][()]))
+        except KeyError:
+            pass
+
+        # TODO replicate non-physical parameters optionally?
+        #add_ppm 0
+        #quench_output 0
+        #only_unpolarized 0
+        #trace parameters
